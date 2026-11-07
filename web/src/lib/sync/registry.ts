@@ -1,5 +1,6 @@
 import { countryFilesSource } from './sources/country-files';
 import { indiaAisheSource } from './sources/india-aishe';
+import { indiaWikidataSource } from './sources/india-wikidata';
 import { localCsvSource } from './sources/local-csv';
 import { unescoUisSource } from './sources/unesco-uis';
 import { worldBankSource } from './sources/world-bank';
@@ -15,7 +16,8 @@ export const SYNC_SOURCES: SyncSource[] = [
   localCsvSource,
   worldBankSource,
   unescoUisSource,
-  indiaAisheSource,
+  indiaWikidataSource,
+  indiaAisheSource, // official file last: its values win
 ];
 
 export function getSources(keys?: string[]): SyncSource[] {

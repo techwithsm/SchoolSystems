@@ -1,10 +1,23 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { stableId } from '../ids';
 import { upsertSources } from '../citations';
 import { pick, readTableFile } from '../table-file';
 import { syncRows } from '../upsert';
-import type { Row, SyncContext, SyncSource } from '../types';
+import type { Row, SyncSource } from '../types';
+import {
+  AISHE_FILE_SOURCE_ID,
+  cleanEmail,
+  cleanPhone,
+  cleanUrl,
+  cleanYear,
+  collegeId,
+  loadIndiaStates,
+  mapManagement,
+  norm,
+  Tally,
+  uniform,
+  universityId,
+} from './india-common';
 
 /**
  * India higher education institutions from the official AISHE directory
@@ -41,68 +54,9 @@ const COL = {
   email: ['email', 'email_id', 'e_mail'],
 };
 
-const norm = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/^the\s+/, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-
-const STATE_ALIASES: Record<string, string> = {
-  orissa: 'odisha',
-  pondicherry: 'puducherry',
-  uttaranchal: 'uttarakhand',
-  'nct of delhi': 'delhi',
-  'andaman and nicobar': 'andaman and nicobar islands',
-  'dadra and nagar haveli': 'dadra and nagar haveli and daman and diu',
-  'daman and diu': 'dadra and nagar haveli and daman and diu',
-};
-
-/** Standard management code from AISHE management / university type text, or null. */
-export function mapManagement(text: string | null): string | null {
-  if (!text) return null;
-  const t = text.toLowerCase();
-  if (t.includes('private')) {
-    if (/un[\s-]?aided/.test(t) || t.includes('self financ')) return 'private';
-    if (t.includes('aided')) return 'government_aided';
-    return 'private';
-  }
-  if (t.includes('aided')) return 'government_aided';
-  if (/(central|state public|government|govt|national importance|open university|local body|municipal|public)/.test(t)) return 'government';
-  return null;
-}
-
 function mapLocality(text: string | null): string | null {
   const t = text?.toLowerCase() ?? '';
   return t.startsWith('rural') ? 'rural' : t.startsWith('urban') ? 'urban' : null;
-}
-
-function cleanYear(text: string | null): number | null {
-  const m = text?.match(/\b(1\d{3}|20\d{2})\b/);
-  const y = m ? Number(m[1]) : NaN;
-  return y >= 1000 && y <= new Date().getUTCFullYear() + 1 ? y : null;
-}
-
-const cleanEmail = (s: string | null) => (s && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s.toLowerCase() : null);
-const cleanPhone = (s: string | null) => (s && /^\+?[0-9 ()./-]{5,30}$/.test(s) ? s : null);
-const cleanUrl = (s: string | null) => {
-  if (!s) return null;
-  const u = /^https?:\/\//i.test(s) ? s : `https://${s}`;
-  return /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(u) ? u : null;
-};
-
-/** Counts unmapped values so the admin sees e.g. "management 'Xyz' x 120". */
-class Tally {
-  private m = new Map<string, number>();
-  add(k: string) {
-    this.m.set(k, (this.m.get(k) ?? 0) + 1);
-  }
-  report(ctx: SyncContext, label: string) {
-    for (const [k, n] of [...this.m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
-      ctx.warn(`${label} '${k}' could not be mapped (${n} rows); left empty`);
-    }
-  }
 }
 
 export const indiaAisheSource: SyncSource = {
@@ -125,19 +79,11 @@ export const indiaAisheSource: SyncSource = {
     }
 
     // State name -> ISO 3166-2 code from core.subdivisions.
-    const { data: subs, error: subErr } = await ctx.db
-      .schema('core')
-      .from('subdivisions')
-      .select('code, name')
-      .eq('country_iso2', 'IN');
-    if (subErr) throw new Error(`core.subdivisions: read failed: ${subErr.message}`);
-    if (!subs?.length) throw new Error('India states missing in core.subdivisions. Apply migration 20261107000600 first.');
-    const stateCode = new Map(subs.map((s) => [norm(s.name), s.code as string]));
-    const toState = (s: string | null) => (s ? (stateCode.get(STATE_ALIASES[norm(s)] ?? norm(s)) ?? null) : null);
+    const toState = (await loadIndiaStates(ctx)).fromName;
 
     // One citation row for the whole directory, dated by the newest file.
     const newest = Math.max(...(await Promise.all(names.map(async (n) => (await stat(path.join(INDIA_AISHE_DIR, n))).mtimeMs))));
-    const sourceId = stableId('IN/src/aishe_directory');
+    const sourceId = AISHE_FILE_SOURCE_ID;
     await upsertSources(ctx, [
       {
         id: sourceId,
@@ -166,7 +112,7 @@ export const indiaAisheSource: SyncSource = {
       // Explicit rows from a universities file win over names derived from colleges.
       const merged: Row = { ...prev };
       for (const [k, v] of Object.entries(fields)) if (v !== null && v !== undefined) merged[k] = v;
-      merged.id = stableId(`IN/univ/${key}`);
+      merged.id = universityId(name);
       merged.name = merged.name ?? name;
       universities.set(key, merged);
       return key;
@@ -235,7 +181,7 @@ export const indiaAisheSource: SyncSource = {
         if (colleges.has(code)) dupCodes++;
         colleges.set(code, {
           ...base,
-          id: stableId(`IN/aishe/${code}`),
+          id: collegeId(code),
           school_type_code: 'higher_ed_college',
           local_type: collegeType ?? (code.startsWith('S-') ? 'Standalone Institution' : null),
         });
@@ -267,12 +213,6 @@ export const indiaAisheSource: SyncSource = {
       const c = colleges.get(collegeCode);
       if (c) c.affiliated_to_id = universities.get(univKey)!.id;
     }
-
-    // All rows in a batch must have the same columns.
-    const uniform = (rows: Row[]) => {
-      const cols = new Set(rows.flatMap((r) => Object.keys(r)));
-      return rows.map((r) => Object.fromEntries([...cols].map((c) => [c, r[c] ?? null])));
-    };
 
     // Universities first (colleges reference them).
     await syncRows(ctx, {
