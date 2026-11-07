@@ -1,0 +1,131 @@
+{
+  "$comment": "Finland. Researched 2026-11-07. Format: see data/README.md. Keys without '/' are prefixed with 'FI/<kind>/' to build stable ids.",
+  "country_iso2": "FI",
+  "accessed_on": "2026-11-07",
+
+  "languages": [
+    { "code": "se", "name": "Northern Sami", "native_name": "Davvisámegiella" }
+  ],
+  "country_languages": [
+    { "language_code": "fi", "role": "official" },
+    { "language_code": "sv", "role": "official" },
+    { "language_code": "se", "role": "regional_official" }
+  ],
+
+  "sources": {
+    "eury_compulsory18": { "title": "Finland: compulsory education extended until age 18", "url": "https://eurydice.eacea.ec.europa.eu/news/finland-compulsory-education-extended-until-age-18", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "Reform in force from 1 August 2021" },
+    "eury_ecec": { "title": "Finland: Early childhood education and care", "url": "https://eurydice.eacea.ec.europa.eu/national-education-systems/finland/early-childhood-education-and-care", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "Pre-primary participation mandatory since August 2015" },
+    "okm_preprimary": { "title": "Pre-primary education", "url": "https://stm.fi/en/web/okm/pre-primary-education1", "publisher": "Ministry of Education and Culture", "source_type": "ministry" },
+    "eury_structure": { "title": "Finland: Organisation of the education system and of its structure", "url": "https://eurydice.eacea.ec.europa.eu/eurypedia/finland/organisation-education-system-and-its-structure", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "Also states compulsory education, not compulsory school attendance" },
+    "eury_assess_basic": { "title": "Finland: Assessment in single structure education", "url": "https://eurydice.eacea.ec.europa.eu/eurypedia/finland/assessment-single-structure-education", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "4-10 grading scale; basic education certificate" },
+    "eury_assess_upsec": { "title": "Finland: Assessment in general upper secondary education", "url": "https://eurydice.eacea.ec.europa.eu/national-education-systems/finland/assessment-general-upper-secondary-education", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "4-10 course grades; matriculation examination" },
+    "norden_grading": { "title": "Grading scales in Finland", "url": "https://www.norden.org/en/info-norden/grading-scales-finland", "publisher": "Info Norden (Nordic Council of Ministers)", "source_type": "other", "notes": "Vocational 1-5 and higher education 0-5 scales" },
+    "eury_funding": { "title": "Finland: Early childhood and school education funding", "url": "https://eurydice.eacea.ec.europa.eu/national-education-systems/finland/early-childhood-and-school-education-funding", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "ECEC fees income-related; private school funding" },
+    "gem_peer_nsa": { "title": "Finland: Non-state actors in education", "url": "https://education-profiles.org/node/812", "publisher": "UNESCO GEM Report: PEER country profiles", "source_type": "unesco", "notes": "~3% of basic-level schools and enrolments non-state; ~10% upper secondary" },
+    "eur_agency_fi": { "title": "Finland: Country background information", "url": "https://www.european-agency.org/node/26950", "publisher": "European Agency for Special Needs and Inclusive Education", "source_type": "other", "notes": "Home education needs notification only" },
+    "norden_basic": { "title": "Basic education in Finland", "url": "https://www.norden.org/en/info-norden/basic-education-finland", "publisher": "Info Norden (Nordic Council of Ministers)", "source_type": "other", "notes": "Languages of instruction" },
+    "eury_english_2026": { "title": "Finland: English language option in general upper secondary education launching 2026", "url": "https://eurydice.eacea.ec.europa.eu/news/finland-english-language-option-general-upper-secondary-education-launching-2026", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "From August 2026" },
+    "hollola_calendar": { "title": "Working and holiday hours in pre-primary and primary education for the 2025-2026 academic year", "url": "https://hollola.fi/en/kasvatus-ja-opetus/perusopetus/kodin-ja-koulun-yhteistyo/tyo-ja-loma-ajat/", "publisher": "Municipality of Hollola", "source_type": "other", "notes": "Cites Basic Education Decree s.7 (year ends last weekday of week 22) and Act s.23 (190 days)" },
+    "eury_school_time": { "title": "The organisation of school time in Europe: primary and general secondary education 2021/22", "url": "https://eurydice.eacea.ec.europa.eu/publications/organisation-school-time-europe-primary-and-general-secondary-education-202122", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "country_iso2": null, "notes": "Finland among earliest school-year starts (August)" },
+    "wb_spending": { "title": "Government expenditure on education, total (% of GDP): Finland", "url": "https://data.worldbank.org/indicator/SE.XPD.TOTL.GD.ZS?locations=FI", "publisher": "World Bank", "source_type": "world_bank", "notes": "API value for 2022: 6.37578; dataset updated 2026-10-08" },
+    "sif_2021": { "title": "Study in Finland presentation 2021", "url": "https://www.educationfinland.fi/sites/default/files/2021-09/SiF%20presentation%202021%20Tokio.pdf", "publisher": "Finnish National Agency for Education (Study in Finland)", "source_type": "ministry", "published_on": "2021-09-01", "notes": "13 universities, 22 universities of applied sciences" },
+    "eury_tuition": { "title": "Finland: tuition fees for non-EU/EEA students have been evaluated", "url": "https://eurydice.eacea.ec.europa.eu/news/finland-tuition-fees-non-eueea-students-have-been-evaluated", "publisher": "Eurydice (European Commission)", "source_type": "eurydice", "notes": "Fees for non-EU/EEA students since 2017" },
+    "iaswece_fi": { "title": "Steiner Waldorf early childhood education: Finland", "url": "https://iaswece.org/europe/finland/", "publisher": "International Association for Steiner/Waldorf Early Childhood Education", "source_type": "other" },
+    "ibo_ish": { "title": "International School of Helsinki", "url": "https://ibo.org/school/000652/", "publisher": "International Baccalaureate", "source_type": "curriculum_body", "notes": "PYP, MYP and DP; IB school since 1992" },
+    "web_okm": { "title": "Ministry of Education and Culture", "url": "https://okm.fi/en", "publisher": "Ministry of Education and Culture", "source_type": "ministry" },
+    "web_oph": { "title": "Finnish National Agency for Education", "url": "https://www.oph.fi/en", "publisher": "Finnish National Agency for Education", "source_type": "ministry" },
+    "web_ytl": { "title": "Matriculation Examination Board", "url": "https://www.ylioppilastutkinto.fi/en", "publisher": "Matriculation Examination Board", "source_type": "curriculum_body" },
+    "web_karvi": { "title": "Finnish Education Evaluation Centre", "url": "https://karvi.fi/en/", "publisher": "Finnish Education Evaluation Centre", "source_type": "ministry" },
+    "web_ibo": { "title": "International Baccalaureate", "url": "https://www.ibo.org", "publisher": "International Baccalaureate", "source_type": "curriculum_body", "country_iso2": null }
+  },
+
+  "education_bodies": [
+    { "key": "okm",   "code": "FI-OKM",   "name": "Ministry of Education and Culture",        "local_name": "Opetus- ja kulttuuriministeriö",          "body_type": "ministry",            "level": "national",      "url": "https://okm.fi/en",                    "sources": ["web_okm"] },
+    { "key": "oph",   "code": "FI-EDUFI", "name": "Finnish National Agency for Education",    "local_name": "Opetushallitus",                          "body_type": "national_agency",     "level": "national",      "url": "https://www.oph.fi/en",                "sources": ["web_oph"] },
+    { "key": "ytl",   "code": "FI-YTL",   "name": "Matriculation Examination Board",          "local_name": "Ylioppilastutkintolautakunta",            "body_type": "exam_board",          "level": "national",      "url": "https://www.ylioppilastutkinto.fi/en", "sources": ["web_ytl"] },
+    { "key": "karvi", "code": "FI-KARVI", "name": "Finnish Education Evaluation Centre",      "local_name": "Kansallinen koulutuksen arviointikeskus", "body_type": "national_agency",     "level": "national",      "url": "https://karvi.fi/en/",                 "sources": ["web_karvi"] },
+    { "key": "INT/body/ibo", "code": "IBO", "name": "International Baccalaureate Organization", "local_name": null,                                   "body_type": "curriculum_provider", "level": "international", "url": "https://www.ibo.org",                  "sources": ["web_ibo"] }
+  ],
+
+  "grading_systems": [
+    { "key": "4_10",    "name": "4-10 scale (basic and general upper secondary education)", "scale_description": "10 excellent, 9 very good, 8 good, 7 satisfactory, 6 moderate, 5 adequate, 4 fail. Some courses are assessed pass/fail.", "best_grade": "10", "lowest_pass_grade": "5", "sources": ["eury_assess_basic", "eury_assess_upsec"] },
+    { "key": "matric",  "name": "Matriculation examination grades", "scale_description": "L laudatur, E eximia cum laude approbatur, M magna cum laude approbatur, C cum laude approbatur, B lubenter approbatur, A approbatur, I improbatur (fail).", "best_grade": "L", "lowest_pass_grade": "A", "sources": ["eury_assess_upsec"] },
+    { "key": "voc_1_5", "name": "1-5 scale (vocational qualifications)", "scale_description": "1-5 numerical scale used for vocational upper secondary qualifications.", "best_grade": "5", "lowest_pass_grade": "1", "sources": ["norden_grading"] },
+    { "key": "he_0_5",  "name": "0-5 scale (higher education)", "scale_description": "1-5 pass grades, 0 fail.", "best_grade": "5", "lowest_pass_grade": "1", "sources": ["norden_grading"] }
+  ],
+
+  "curricula": [
+    { "code": "fi_national", "name": "Finnish national core curriculum", "provider": "Finnish National Agency for Education", "curriculum_type": "national", "parent_code": "national", "url": "https://www.oph.fi/en", "sort_order": 1 }
+  ],
+
+  "profile": {
+    "overview": "Finland has a single-structure basic education (perusopetus, grades 1-9) followed by general (lukio) or vocational upper secondary education. Since 1 August 2021 compulsory education lasts until age 18 or completion of an upper secondary qualification. Education is free from pre-primary to upper secondary; early childhood education and care carries income-related fees. Finnish and Swedish are the main languages of instruction, with Sámi used in the Sámi homeland. Non-state schools are few (about 3% of basic-level enrolments) and are publicly funded. The school year starts in August and ends on the last weekday of week 22 (late May or early June).",
+    "is_decentralised": false,
+    "compulsory_start_age": 6,
+    "compulsory_end_age": 18,
+    "compulsory_years": 12,
+    "compulsory_notes": "Pre-primary education is mandatory in the year before basic education (usually the year the child turns 6). Compulsory education proper starts in the year the child turns 7 and ends at 18 or on completing an upper secondary qualification. Finland has compulsory education, not compulsory school attendance: home education is permitted.",
+    "academic_year_start_month": 8,
+    "academic_year_end_month": null,
+    "term_structure_code": "two_semesters",
+    "grading_system": "4_10",
+    "ministry": "okm",
+    "field_sources": {
+      "compulsory_end_age": ["eury_compulsory18"],
+      "compulsory_start_age": ["eury_ecec", "okm_preprimary"],
+      "compulsory_years": ["eury_compulsory18"],
+      "compulsory_notes": ["eury_structure"],
+      "academic_year_start_month": ["eury_school_time"],
+      "term_structure_code": ["hollola_calendar"],
+      "grading_system_id": ["eury_assess_basic"],
+      "ministry_id": ["web_okm"],
+      "public_spending_pct_gdp": ["wb_spending"],
+      "overview": ["gem_peer_nsa", "hollola_calendar", "eury_funding"],
+      "instruction_languages": ["norden_basic", "eury_english_2026"]
+    }
+  },
+
+  "instruction_languages": [
+    { "language_code": "fi", "scope": "main", "notes": null },
+    { "language_code": "sv", "scope": "main", "notes": null },
+    { "language_code": "se", "scope": "regional", "notes": "Sámi languages are used as a language of instruction in some schools in the Sámi-speaking areas." },
+    { "language_code": "en", "scope": "bilingual_programmes", "notes": "General upper secondary education in English offered from August 2026." }
+  ],
+
+  "education_stages": [
+    { "key": "ecec", "name": "Early childhood education and care", "local_name": "Varhaiskasvatus", "stage_type_code": "early_childhood", "isced_from": "0", "isced_to": "0", "orientation_code": null, "start_age": null, "end_age": 6, "grades_label": null, "duration_years": null, "is_compulsory": false, "is_free_public": false, "sort_order": 1, "notes": "Optional. Municipal fees depend on family income, family size and hours of attendance.", "sources": ["eury_funding"] },
+    { "key": "preprimary", "name": "Pre-primary education", "local_name": "Esiopetus", "stage_type_code": "early_childhood", "isced_from": "0", "isced_to": "0", "orientation_code": null, "start_age": 6, "end_age": 7, "grades_label": null, "duration_years": 1, "is_compulsory": true, "is_free_public": true, "sort_order": 2, "notes": "Mandatory since August 2015 in the year before basic education. About four hours a day.", "sources": ["eury_ecec", "okm_preprimary"] },
+    { "key": "basic", "name": "Basic education", "local_name": "Perusopetus", "stage_type_code": "basic_combined", "isced_from": "1", "isced_to": "2", "orientation_code": "general", "start_age": 7, "end_age": 16, "grades_label": "1-9", "duration_years": 9, "is_compulsory": true, "is_free_public": true, "sort_order": 3, "notes": "Single structure covering primary (grades 1-6) and lower secondary (grades 7-9). Textbooks and materials are free.", "sources": ["eury_structure", "eury_assess_basic"] },
+    { "key": "lukio", "name": "General upper secondary education", "local_name": "Lukio", "stage_type_code": "upper_secondary", "isced_from": "3", "isced_to": "3", "orientation_code": "general", "start_age": 16, "end_age": 19, "grades_label": null, "duration_years": 3, "is_compulsory": true, "is_free_public": true, "sort_order": 4, "notes": "Typically three years, ending with the matriculation examination. Compulsory until 18 since August 2021.", "sources": ["eury_structure", "eury_compulsory18"] },
+    { "key": "vocational", "name": "Vocational upper secondary education", "local_name": "Ammatillinen koulutus", "stage_type_code": "upper_secondary", "isced_from": "3", "isced_to": "3", "orientation_code": "vocational", "start_age": 16, "end_age": null, "grades_label": null, "duration_years": 3, "is_compulsory": true, "is_free_public": true, "sort_order": 5, "notes": "Leads to a vocational upper secondary qualification. Compulsory until 18 since August 2021.", "sources": ["eury_structure", "eury_compulsory18"] },
+    { "key": "uas", "name": "Universities of applied sciences", "local_name": "Ammattikorkeakoulu", "stage_type_code": "tertiary_bachelor", "isced_from": "6", "isced_to": "7", "orientation_code": null, "start_age": null, "end_age": null, "grades_label": null, "duration_years": null, "is_compulsory": false, "is_free_public": null, "sort_order": 6, "notes": "Free for EU/EEA students; non-EU/EEA students pay fees for most English-taught programmes (since 2017).", "sources": ["sif_2021", "eury_tuition"] },
+    { "key": "university", "name": "Universities", "local_name": "Yliopisto", "stage_type_code": "tertiary_bachelor", "isced_from": "6", "isced_to": "8", "orientation_code": null, "start_age": null, "end_age": null, "grades_label": null, "duration_years": null, "is_compulsory": false, "is_free_public": null, "sort_order": 7, "notes": "Bachelor's, master's and doctoral degrees. Doctoral programmes are free for all; non-EU/EEA fees apply to most English-taught bachelor's and master's programmes.", "sources": ["sif_2021", "eury_tuition"] }
+  ],
+
+  "country_curricula": [
+    { "curriculum_code": "fi_national", "school_count": null, "school_count_as_of": null, "notes": "Set nationally; municipalities and schools draw up local curricula from it.", "sources": ["web_oph"] },
+    { "curriculum_code": "ib",     "school_count": null, "school_count_as_of": null, "notes": "IB programmes are offered by both municipal upper secondary schools and international schools.", "sources": ["ibo_ish"] },
+    { "curriculum_code": "ib_pyp", "school_count": null, "school_count_as_of": null, "notes": null, "sources": ["ibo_ish"] },
+    { "curriculum_code": "ib_myp", "school_count": null, "school_count_as_of": null, "notes": null, "sources": ["ibo_ish"] },
+    { "curriculum_code": "ib_dp",  "school_count": null, "school_count_as_of": null, "notes": null, "sources": ["ibo_ish"] }
+  ],
+
+  "school_types": [
+    { "key": "municipal", "school_type_code": "public", "local_name": "Kunnallinen koulu (municipal school)", "description": "Most schools are maintained by municipalities or joint municipal authorities.", "management_type_code": "government", "funding_type_code": "public", "fee_policy_code": "free", "governing_body": "oph", "isced_from": "0", "isced_to": "3", "number_of_schools": null, "number_of_schools_year": null, "legal_status_notes": null, "sort_order": 1, "curricula": ["fi_national", "ib_dp"], "sources": ["eury_funding"] },
+    { "key": "private", "school_type_code": "public_autonomous", "local_name": "Yksityiskoulu (private school)", "description": "Privately run schools operating under a government licence and funded on the same per-pupil basis as municipal schools. About 3% of basic-level enrolments.", "management_type_code": "government_aided", "funding_type_code": "public", "fee_policy_code": "free", "governing_body": null, "isced_from": "1", "isced_to": "3", "number_of_schools": null, "number_of_schools_year": null, "legal_status_notes": "Need a government licence; may not charge tuition fees for basic education or operate for profit. Moderate fees are allowed only in specific cases (e.g. education abroad or in another language).", "sort_order": 2, "curricula": ["fi_national"], "sources": ["eury_funding", "gem_peer_nsa"] },
+    { "key": "steiner", "school_type_code": "alternative", "local_name": "Steinerkoulu (Steiner school)", "description": "Steiner/Waldorf schools and kindergartens are private institutions, partly co-financed by the state when they meet national requirements.", "management_type_code": "private", "funding_type_code": "mixed", "fee_policy_code": null, "governing_body": null, "isced_from": "0", "isced_to": "3", "number_of_schools": null, "number_of_schools_year": null, "legal_status_notes": null, "sort_order": 3, "curricula": [], "sources": ["iaswece_fi"] },
+    { "key": "international", "school_type_code": "international", "local_name": "International schools and IB programmes", "description": "Includes fee-paying international schools (e.g. International School of Helsinki: IB PYP, MYP, DP) and IB Diploma lines in municipal upper secondary schools.", "management_type_code": null, "funding_type_code": null, "fee_policy_code": "varies", "governing_body": null, "isced_from": "0", "isced_to": "3", "number_of_schools": null, "number_of_schools_year": null, "legal_status_notes": null, "sort_order": 4, "curricula": ["ib_pyp", "ib_myp", "ib_dp"], "sources": ["ibo_ish"] },
+    { "key": "vocational", "school_type_code": "vocational", "local_name": "Ammatillinen oppilaitos (vocational institution)", "description": "Provides vocational upper secondary qualifications.", "management_type_code": null, "funding_type_code": "public", "fee_policy_code": "free", "governing_body": null, "isced_from": "3", "isced_to": "3", "number_of_schools": null, "number_of_schools_year": null, "legal_status_notes": null, "sort_order": 5, "curricula": [], "sources": ["eury_structure"] },
+    { "key": "home", "school_type_code": "homeschool", "local_name": "Kotiopetus (home education)", "description": "Permitted because Finland requires education, not school attendance. Rare in practice.", "management_type_code": null, "funding_type_code": null, "fee_policy_code": null, "governing_body": null, "isced_from": "1", "isced_to": "2", "number_of_schools": null, "number_of_schools_year": null, "legal_status_notes": "No permit needed: guardians notify the municipality of residence, which monitors progress through an assigned teacher against curriculum goals.", "sort_order": 6, "curricula": [], "sources": ["eury_structure", "eur_agency_fi"] },
+    { "key": "daycare", "school_type_code": "early_childhood", "local_name": "Päiväkoti (day-care centre)", "description": "Early childhood education and care. Municipal fees depend on family income, family size and weekly hours.", "management_type_code": null, "funding_type_code": null, "fee_policy_code": "varies", "governing_body": null, "isced_from": "0", "isced_to": "0", "number_of_schools": null, "number_of_schools_year": null, "legal_status_notes": null, "sort_order": 7, "curricula": [], "sources": ["eury_funding"] },
+    { "key": "university", "school_type_code": "higher_ed_university", "local_name": "Yliopisto (university)", "description": "Research universities awarding bachelor's, master's and doctoral degrees.", "management_type_code": null, "funding_type_code": "public", "fee_policy_code": "varies", "governing_body": "okm", "isced_from": "6", "isced_to": "8", "number_of_schools": 13, "number_of_schools_year": 2021, "legal_status_notes": "Tuition free for EU/EEA students; non-EU/EEA students pay fees for most English-taught programmes since 2017.", "sort_order": 8, "curricula": [], "field_sources": { "number_of_schools": ["sif_2021"], "legal_status_notes": ["eury_tuition"] } },
+    { "key": "uas", "school_type_code": "higher_ed_college", "local_name": "Ammattikorkeakoulu (university of applied sciences)", "description": "Professionally oriented higher education institutions awarding bachelor's and master's degrees.", "management_type_code": null, "funding_type_code": "public", "fee_policy_code": "varies", "governing_body": "okm", "isced_from": "6", "isced_to": "7", "number_of_schools": 22, "number_of_schools_year": 2021, "legal_status_notes": "Tuition free for EU/EEA students; non-EU/EEA students pay fees for most English-taught programmes since 2017.", "sort_order": 9, "curricula": [], "field_sources": { "number_of_schools": ["sif_2021"], "legal_status_notes": ["eury_tuition"] } }
+  ],
+
+  "qualifications": [
+    { "key": "basic_cert", "name": "Basic education certificate", "local_name": "Perusopetuksen päättötodistus", "international": false, "isced_code": "2", "orientation_code": "general", "awarding_body": null, "curriculum_code": "fi_national", "sources": ["eury_assess_basic"] },
+    { "key": "matric", "name": "Matriculation examination certificate", "local_name": "Ylioppilastutkintotodistus", "international": false, "isced_code": "3", "orientation_code": "general", "awarding_body": "ytl", "curriculum_code": "fi_national", "sources": ["eury_assess_upsec", "web_ytl"] },
+    { "key": "voc", "name": "Vocational upper secondary qualification", "local_name": "Ammatillinen perustutkinto", "international": false, "isced_code": "3", "orientation_code": "vocational", "awarding_body": null, "curriculum_code": null, "sources": ["eury_structure"] },
+    { "key": "INT/qual/ib_dp", "name": "IB Diploma", "local_name": null, "international": true, "isced_code": "3", "orientation_code": "general", "awarding_body": "INT/body/ibo", "curriculum_code": "ib_dp", "sources": ["web_ibo"] }
+  ]
+}
