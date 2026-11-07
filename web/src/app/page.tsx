@@ -54,9 +54,10 @@ async function SearchArea({ searchParams }: { searchParams: PageProps<'/'>['sear
   const href = filtersToHref(filters);
   return (
     <div className="space-y-6">
-      {/* key: reset the form's default values when the URL changes */}
-      <SearchForm key={href} filters={filters} management={management} {...options} />
-      <Suspense key={href} fallback={<p className="text-zinc-500">Searching…</p>}>
+      {/* keys change with the URL: the form resets its default values and the
+          results show "Searching…" again. Sibling keys must differ. */}
+      <SearchForm key={`form:${href}`} filters={filters} management={management} {...options} />
+      <Suspense key={`results:${href}`} fallback={<p className="text-zinc-500">Searching…</p>}>
         <Results filters={filters} />
       </Suspense>
     </div>
