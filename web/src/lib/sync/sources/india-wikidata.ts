@@ -12,7 +12,8 @@ import {
   loadIndiaStates,
   Tally,
   uniform,
-  universityId,
+  UniversityResolver,
+  dropDuplicateCodes,
 } from './india-common';
 
 /**
@@ -156,28 +157,31 @@ export const indiaWikidataSource: SyncSource = {
       if (!data || data.length < 1000) break;
     }
 
+    const resolver = await UniversityResolver.load(ctx);
     const universities = new Map<string, Row>(); // key: university id
+    const ownRecord = new Set<string>(); // universities with their own Wikidata item in this run
     const colleges = new Map<string, Row>(); // key: AISHE code
-    const universityCodes = new Map<string, string>(); // AISHE U-code -> university id
     const badState = new Tally();
     let noName = 0;
-    let dupUniversity = 0;
 
-    const putUniversity = (name: string, code: string | null, fields: Row) => {
-      // Same AISHE code under another name: merge into the first row.
-      const id = (code && universityCodes.get(code)) || universityId(name);
-      const prev = universities.get(id);
-      if (prev && code && prev.external_id && prev.external_id !== code) dupUniversity++;
-      const merged: Row = { ...(prev ?? {}) };
-      for (const [k, v] of Object.entries(fields)) if (v !== null && v !== undefined && merged[k] == null) merged[k] = v;
-      merged.id = id;
-      merged.name ??= name;
-      if (code && !merged.external_id) {
-        merged.external_id = code;
-        merged.external_id_scheme = 'AISHE';
-        universityCodes.set(code, id);
+    /**
+     * Adds a university (own record: `fields` set) or a placeholder from a
+     * college's affiliation (`fields` empty). The own record always wins, so
+     * the result does not depend on the order Wikidata returns rows in.
+     */
+    const putUniversity = (name: string, code: string, fields: Row | null) => {
+      const id = resolver.resolve(code, name);
+      if (fields) {
+        // Each id has exactly one code; if Wikidata has duplicate items for it,
+        // keep the alphabetically first name so every run picks the same one.
+        const prev = universities.get(id);
+        if (!ownRecord.has(id) || name < String(prev?.name)) {
+          universities.set(id, { ...fields, id, name, external_id: code, external_id_scheme: 'AISHE' });
+          ownRecord.add(id);
+        }
+      } else if (!universities.has(id)) {
+        universities.set(id, { id, name, external_id: code, external_id_scheme: 'AISHE' });
       }
-      universities.set(id, merged);
       return id;
     };
 
@@ -224,7 +228,7 @@ export const indiaWikidataSource: SyncSource = {
         external_id_scheme: 'AISHE',
       };
       if (r.aff_code?.toUpperCase().startsWith('U-') && r.aff_name) {
-        row.affiliated_to_id = putUniversity(r.aff_name, r.aff_code.toUpperCase(), {});
+        row.affiliated_to_id = putUniversity(r.aff_name, r.aff_code.toUpperCase(), null);
       }
       colleges.set(code, row);
     }
@@ -239,6 +243,7 @@ export const indiaWikidataSource: SyncSource = {
     const keep = (r: Row) => !official.has(r.id as string);
     const uniRows = uniform([...universities.values()].filter(keep));
     const collegeRows = uniform([...colleges.values()].filter(keep));
+    await dropDuplicateCodes(ctx, [...uniRows, ...collegeRows]);
 
     await syncRows(ctx, {
       schema: 'edu',
@@ -263,7 +268,6 @@ export const indiaWikidataSource: SyncSource = {
         '.',
     );
     if (noName) ctx.warn(`${noName} records had no English name and were skipped.`);
-    if (dupUniversity) ctx.warn(`${dupUniversity} universities appear under more than one AISHE code in Wikidata (first kept).`);
     badState.report(ctx, 'State code');
   },
 };

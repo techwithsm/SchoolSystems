@@ -13,10 +13,10 @@ import {
   collegeId,
   loadIndiaStates,
   mapManagement,
-  norm,
   Tally,
   uniform,
-  universityId,
+  UniversityResolver,
+  dropDuplicateCodes,
 } from './india-common';
 
 /**
@@ -98,24 +98,23 @@ export const indiaAisheSource: SyncSource = {
       },
     ]);
 
-    const universities = new Map<string, Row>(); // key: normalized name
+    const resolver = await UniversityResolver.load(ctx);
+    const universities = new Map<string, Row>(); // key: university id
     const colleges = new Map<string, Row>(); // key: AISHE code
-    const pendingAffil: { collegeCode: string; univKey: string }[] = [];
     const badState = new Tally();
     const badMgmt = new Tally();
     let dupCodes = 0;
     let droppedContact = 0;
 
-    const addUniversity = (name: string, fields: Row) => {
-      const key = norm(name);
-      const prev = universities.get(key) ?? {};
-      // Explicit rows from a universities file win over names derived from colleges.
-      const merged: Row = { ...prev };
+    /** Adds or merges a university; returns its id. Explicit rows win over names from affiliations. */
+    const addUniversity = (name: string, code: string | null, fields: Row) => {
+      const id = resolver.resolve(code, name);
+      const merged: Row = { ...(universities.get(id) ?? {}) };
       for (const [k, v] of Object.entries(fields)) if (v !== null && v !== undefined) merged[k] = v;
-      merged.id = universityId(name);
-      merged.name = merged.name ?? name;
-      universities.set(key, merged);
-      return key;
+      merged.id = id;
+      merged.name ??= name;
+      universities.set(id, merged);
+      return id;
     };
 
     for (const fileName of names) {
@@ -174,28 +173,29 @@ export const indiaAisheSource: SyncSource = {
         };
 
         if (isUniversity) {
-          addUniversity(name, { ...base, school_type_code: 'higher_ed_university', local_type: universityType });
+          addUniversity(name, code, { ...base, school_type_code: 'higher_ed_university', local_type: universityType });
           continue;
         }
 
         if (colleges.has(code)) dupCodes++;
-        colleges.set(code, {
+        const college: Row = {
           ...base,
           id: collegeId(code),
           school_type_code: 'higher_ed_college',
           local_type: collegeType ?? (code.startsWith('S-') ? 'Standalone Institution' : null),
-        });
+        };
 
         const affilName = pick(r, COL.affilName);
         if (affilName) {
           const affilType = pick(r, COL.affilType);
-          const key = addUniversity(affilName, {});
-          const u = universities.get(key)!;
+          const id = addUniversity(affilName, null, {});
+          const u = universities.get(id)!;
           // Fill type/management for universities known only by name.
           if (affilType && !u.local_type) u.local_type = affilType;
           if (affilType && !u.management_type_code) u.management_type_code = mapManagement(affilType);
-          pendingAffil.push({ collegeCode: code, univKey: key });
+          college.affiliated_to_id = id;
         }
+        colleges.set(code, college);
       }
     }
 
@@ -205,14 +205,16 @@ export const indiaAisheSource: SyncSource = {
       u.school_type_code = 'higher_ed_university';
       u.source_id = sourceId;
       if (u.external_id === undefined) {
-        u.external_id = null;
-        u.external_id_scheme = null;
+        // Keep the code an earlier sync (e.g. Wikidata) stored for this row.
+        const known = resolver.codeOf(u.id as string);
+        u.external_id = known;
+        u.external_id_scheme = known ? 'AISHE' : null;
       }
     }
-    for (const { collegeCode, univKey } of pendingAffil) {
-      const c = colleges.get(collegeCode);
-      if (c) c.affiliated_to_id = universities.get(univKey)!.id;
-    }
+
+    const uniRows = uniform([...universities.values()]);
+    const collegeRows = uniform([...colleges.values()]);
+    await dropDuplicateCodes(ctx, [...uniRows, ...collegeRows]);
 
     // Universities first (colleges reference them).
     await syncRows(ctx, {
@@ -221,7 +223,7 @@ export const indiaAisheSource: SyncSource = {
       keyColumns: ['id'],
       tracksVerification: true,
       scope: { country_iso2: 'IN', school_type_code: 'higher_ed_university' },
-      rows: uniform([...universities.values()]),
+      rows: uniRows,
     });
     await syncRows(ctx, {
       schema: 'edu',
@@ -229,7 +231,7 @@ export const indiaAisheSource: SyncSource = {
       keyColumns: ['id'],
       tracksVerification: true,
       scope: { country_iso2: 'IN', school_type_code: 'higher_ed_college' },
-      rows: uniform([...colleges.values()]),
+      rows: collegeRows,
     });
 
     ctx.warn(`Read ${colleges.size} colleges/standalone institutions and ${universities.size} universities from ${names.length} file(s).`);
