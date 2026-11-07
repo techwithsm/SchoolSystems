@@ -1,6 +1,7 @@
 'use server';
 
-import { refresh } from 'next/cache';
+import { refresh, updateTag } from 'next/cache';
+import { DIRECTORY_CACHE_TAG } from '@/lib/directory';
 import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth';
 import { createUserClient } from '@/lib/supabase/server';
@@ -31,6 +32,7 @@ export async function runSyncAction(_prev: SyncActionState, formData: FormData):
 
   try {
     const summary = await runSync({ sourceKeys: keys, triggeredBy: admin.userId, dryRun });
+    if (!dryRun) updateTag(DIRECTORY_CACHE_TAG); // public search filters show the new data
     refresh(); // re-render the page so "Recent runs" shows this run
     return { summary, error: summary.runId ? null : (summary.error ?? 'Sync could not start.') };
   } catch (err) {
