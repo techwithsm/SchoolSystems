@@ -4,6 +4,14 @@
  * keyed by the trimmed header names. Blank lines are skipped.
  */
 export function parseCsv(text: string): Record<string, string>[] {
+  const rows = parseCsvRows(text);
+  if (rows.length === 0) return [];
+  const header = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((r) => Object.fromEntries(header.map((h, i) => [h, (r[i] ?? '').trim()])));
+}
+
+/** Same parser, returning raw rows (arrays of cells) without blank lines. */
+export function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];
   let field = '';
   let row: string[] = [];
@@ -41,8 +49,5 @@ export function parseCsv(text: string): Record<string, string>[] {
     rows.push(row);
   }
 
-  const nonEmpty = rows.filter((r) => r.some((c) => c.trim() !== ''));
-  if (nonEmpty.length === 0) return [];
-  const header = nonEmpty[0].map((h) => h.trim());
-  return nonEmpty.slice(1).map((r) => Object.fromEntries(header.map((h, i) => [h, (r[i] ?? '').trim()])));
+  return rows.filter((r) => r.some((c) => c.trim() !== ''));
 }

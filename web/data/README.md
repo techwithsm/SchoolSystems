@@ -8,6 +8,7 @@ The admin page (`/admin`) runs these sources in order:
 | Local CSV statistics | `stats/*.csv` | Statistic fields of `edu.country_profiles`, plus sources and citations |
 | World Bank indicators | World Bank API | Spending % of GDP, literacy rate, private primary enrolment %, each with its year |
 | UNESCO UIS | UIS Data API | Compulsory education duration and entrance age |
+| India: colleges & universities (AISHE) | `india/aishe/*.xlsx` or `*.csv` | `edu.schools`: every Indian college, university and standalone institution (see [india/aishe/README.md](india/aishe/README.md)) |
 
 Rules every source follows:
 - **Rows that are new or changed** go back to `verification_status = 'needs_verification'`. Rows that haven't changed keep their status.

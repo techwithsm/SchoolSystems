@@ -13,6 +13,11 @@ export interface SyncRowsOptions {
    * Unchanged rows keep whatever status a human gave them.
    */
   tracksVerification?: boolean;
+  /**
+   * For big tables: load existing rows with these equality filters (paged)
+   * instead of looking them up key by key. Must cover every row in `rows`.
+   */
+  scope?: Record<string, string>;
 }
 
 /** Loose equality that treats 6, 6.0 and '6.0' as equal and undefined as null. */
@@ -43,10 +48,24 @@ export async function syncRows(ctx: SyncContext, opts: SyncRowsOptions): Promise
 
   const columns = Array.from(new Set([...keyColumns, ...rows.flatMap((r) => Object.keys(r))]));
 
-  // 1. Load the existing rows that could match (by the first key column).
+  // 1. Load the existing rows that could match: a whole scope page by page,
+  //    or by the first key column.
   const firstKey = keyColumns[0];
-  const lookupValues = Array.from(new Set(rows.map((r) => r[firstKey]).filter((v) => v != null)));
   const existing = new Map<string, Row>();
+  if (opts.scope) {
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      let q = ctx.db.schema(schema).from(table).select(columns.join(','));
+      for (const [col, val] of Object.entries(opts.scope)) q = q.eq(col, val);
+      const { data, error } = await q.order(keyColumns[0]).range(from, from + PAGE - 1);
+      if (error) throw new Error(`${label}: read failed: ${error.message}`);
+      for (const r of (data ?? []) as unknown as Row[]) existing.set(keyOf(r, keyColumns), r);
+      if (!data || data.length < PAGE) break;
+    }
+  }
+  const lookupValues = opts.scope
+    ? []
+    : Array.from(new Set(rows.map((r) => r[firstKey]).filter((v) => v != null)));
   for (const part of chunk(lookupValues, 200)) {
     const { data, error } = await ctx.db
       .schema(schema)

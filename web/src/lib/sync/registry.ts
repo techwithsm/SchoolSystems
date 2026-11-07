@@ -1,4 +1,5 @@
 import { countryFilesSource } from './sources/country-files';
+import { indiaAisheSource } from './sources/india-aishe';
 import { localCsvSource } from './sources/local-csv';
 import { unescoUisSource } from './sources/unesco-uis';
 import { worldBankSource } from './sources/world-bank';
@@ -9,7 +10,13 @@ import type { SyncSource } from './types';
  * Curated files run first so the API sources can see (and respect) their
  * citations. To add a source, implement SyncSource and append it here.
  */
-export const SYNC_SOURCES: SyncSource[] = [countryFilesSource, localCsvSource, worldBankSource, unescoUisSource];
+export const SYNC_SOURCES: SyncSource[] = [
+  countryFilesSource,
+  localCsvSource,
+  worldBankSource,
+  unescoUisSource,
+  indiaAisheSource,
+];
 
 export function getSources(keys?: string[]): SyncSource[] {
   if (!keys || keys.length === 0) return SYNC_SOURCES;
