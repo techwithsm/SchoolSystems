@@ -25,12 +25,16 @@ const ENDPOINT = 'https://query.wikidata.org/sparql';
 const USER_AGENT = 'SchoolSystemsDirectory-Sync/1.0 (education directory; Supabase sync)';
 const CONCURRENCY = 3; // Wikidata allows a few parallel queries per client
 
-/** SPARQL for items whose AISHE code ends with `suffix` (splits the work into batches). */
+/**
+ * SPARQL for items whose AISHE code ends with `suffix` (splits the work into batches).
+ * MIN() rather than SAMPLE(): when an item has several values (two websites, two
+ * types), every run must pick the same one, or re-syncs would flip-flop.
+ */
 const query = (suffix: string) => `
-SELECT ?code (SAMPLE(?label) AS ?name) (SAMPLE(?iso) AS ?state) (SAMPLE(?distLabel) AS ?district)
-       (SAMPLE(?locLabel) AS ?place) (MIN(?inc) AS ?founded) (SAMPLE(?web) AS ?website) (SAMPLE(?coord) AS ?coords)
-       (SAMPLE(?affCode) AS ?aff_code) (SAMPLE(?affName) AS ?aff_name) (SAMPLE(?typeLabel) AS ?type)
-       (SAMPLE(?ph) AS ?phone) (SAMPLE(?em) AS ?email) (SAMPLE(?addr) AS ?address) (SAMPLE(?pc) AS ?postal)
+SELECT ?code (MIN(?label) AS ?name) (MIN(?iso) AS ?state) (MIN(?distLabel) AS ?district)
+       (MIN(?locLabel) AS ?place) (MIN(?inc) AS ?founded) (MIN(?web) AS ?website) (MIN(?coord) AS ?coords)
+       (MIN(?affCode) AS ?aff_code) (MIN(?affName) AS ?aff_name) (MIN(?typeLabel) AS ?type)
+       (MIN(?ph) AS ?phone) (MIN(?em) AS ?email) (MIN(?addr) AS ?address) (MIN(?pc) AS ?postal)
 WHERE {
   ?i wdt:P6392 ?code . FILTER(STRENDS(?code, "${suffix}"))
   OPTIONAL { ?i rdfs:label ?label FILTER(LANG(?label) = "en") }

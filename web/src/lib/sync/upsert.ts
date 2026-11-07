@@ -36,6 +36,38 @@ export function sameValue(a: unknown, b: unknown): boolean {
 
 const keyOf = (row: Row, cols: string[]) => cols.map((c) => String(row[c] ?? '')).join('\u0000');
 
+const INSERT_BATCH = 250;
+
+/** Network drops, timeouts and 5xx are worth retrying; data errors are not. */
+function isTransient(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? '').toLowerCase();
+  return (
+    msg.includes('fetch failed') ||
+    msg.includes('network') ||
+    msg.includes('timeout') ||
+    msg.includes('econnreset') ||
+    msg.includes('socket') ||
+    /^5\d\d$/.test(error.code ?? '') ||
+    error.code === '' // supabase-js uses an empty code for transport errors
+  );
+}
+
+/** Runs a Supabase write, retrying transient failures with backoff (1s, 2s, 4s, 8s). */
+async function withRetry<T extends { error: { message?: string; code?: string } | null }>(
+  label: string,
+  write: () => PromiseLike<T>,
+  attempts = 5,
+): Promise<T> {
+  let result = await write();
+  for (let i = 1; i < attempts && isTransient(result.error); i++) {
+    await new Promise((r) => setTimeout(r, 1000 * 2 ** (i - 1)));
+    console.warn(`[sync] ${label}: retry ${i} after "${result.error?.message}"`);
+    result = await write();
+  }
+  return result;
+}
+
 /**
  * Diff-based upsert: reads the current rows, then inserts new ones, updates
  * only rows whose supplied columns changed, and leaves the rest alone.
@@ -101,15 +133,24 @@ export async function syncRows(ctx: SyncContext, opts: SyncRowsOptions): Promise
     if (toUpdate.length) ctx.count(label, 'updated', toUpdate.length);
     return;
   }
-  for (const part of chunk(toInsert, 500)) {
-    const { error } = await ctx.db.schema(schema).from(table).insert(part, { defaultToNull: false });
+  for (const part of chunk(toInsert, INSERT_BATCH)) {
+    // "Insert, skip rows whose key already exists": safe to retry if a
+    // dropped connection hid the fact that the first attempt succeeded.
+    const { error } = await withRetry(label, () =>
+      ctx.db
+        .schema(schema)
+        .from(table)
+        .upsert(part, { onConflict: keyColumns.join(','), ignoreDuplicates: true, defaultToNull: false }),
+    );
     if (error) throw new Error(`${label}: insert failed: ${error.message}`);
     ctx.count(label, 'inserted', part.length);
   }
   for (const row of toUpdate) {
-    let q = ctx.db.schema(schema).from(table).update(row);
-    for (const c of keyColumns) q = q.eq(c, row[c] as string);
-    const { error } = await q;
+    const { error } = await withRetry(label, () => {
+      let q = ctx.db.schema(schema).from(table).update(row);
+      for (const c of keyColumns) q = q.eq(c, row[c] as string);
+      return q;
+    });
     if (error) throw new Error(`${label}: update failed: ${error.message}`);
     ctx.count(label, 'updated');
   }
