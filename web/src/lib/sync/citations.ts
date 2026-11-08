@@ -42,8 +42,38 @@ export interface CitationInput {
   note?: string | null;
 }
 
+/**
+ * core.sources is UNIQUE (url, accessed_on). Fail early, with a clear message
+ * and also in preview mode, if another source row already uses the same URL
+ * on the same date.
+ */
+async function assertNoUrlClash(ctx: SyncContext, sources: SourceInput[]): Promise<void> {
+  const withUrl = sources.filter((s) => s.url);
+  const seen = new Map<string, string>();
+  for (const s of withUrl) {
+    const k = `${s.url}|${s.accessed_on}`;
+    if (seen.has(k) && seen.get(k) !== s.id) throw new Error(`core.sources: two sources in this sync share URL ${s.url}`);
+    seen.set(k, s.id);
+  }
+  for (const part of chunk(withUrl, 100)) {
+    const { data, error } = await ctx.db
+      .schema('core')
+      .from('sources')
+      .select('id, url, accessed_on')
+      .in('url', part.map((s) => s.url!));
+    if (error) throw new Error(`core.sources: read failed: ${error.message}`);
+    for (const row of data ?? []) {
+      const mine = part.find((s) => s.url === row.url && s.accessed_on === row.accessed_on);
+      if (mine && mine.id !== row.id) {
+        throw new Error(`core.sources: URL ${row.url} is already used by another source on ${row.accessed_on}; give this source its own URL.`);
+      }
+    }
+  }
+}
+
 /** Inserts/updates rows in core.sources. */
 export async function upsertSources(ctx: SyncContext, sources: SourceInput[]): Promise<void> {
+  await assertNoUrlClash(ctx, sources);
   await syncRows(ctx, {
     schema: 'core',
     table: 'sources',

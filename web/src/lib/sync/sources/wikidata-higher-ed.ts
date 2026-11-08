@@ -198,7 +198,8 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
         {
           id: sourceId,
           title: `Wikidata: higher education institutions in ${cfg.label.split(':')[0]}`,
-          url: 'https://www.wikidata.org/',
+          // Unique per country: core.sources allows one row per (url, accessed_on).
+          url: `https://www.wikidata.org/wiki/${cfg.countryQid}`,
           publisher: 'Wikidata (Wikimedia Foundation)',
           source_type_code: 'other',
           country_iso2: cfg.iso2,
