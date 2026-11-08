@@ -4,7 +4,7 @@ import { upsertSources } from '../citations';
 import { parseCsv } from '../csv';
 import { syncRows } from '../upsert';
 import type { Row, SyncContext, SyncSource } from '../types';
-import { cleanUrl, uniform } from './india-common';
+import { cleanUrl, uniform } from './common';
 
 /**
  * United States colleges and universities from IPEDS (Integrated

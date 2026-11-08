@@ -10,6 +10,8 @@ The admin page (`/admin`) runs these sources in order:
 | UNESCO UIS | UIS Data API | Compulsory education duration and entrance age |
 | India: colleges & universities (Wikidata) | Wikidata SPARQL (items with an AISHE code, CC0) | `edu.schools`: about 24,000 Indian institutions, using the same ids as the AISHE file |
 | United States: colleges & universities (IPEDS) | NCES IPEDS directory file (HD, downloaded automatically, public domain) | `edu.schools`: about 4,000 active degree-granting institutions with address, phone, website and location; `core.subdivisions`: US states and territories |
+| Canada: colleges & universities (Wikidata) | Wikidata SPARQL (CC0) | `edu.schools`: Canadian universities, colleges, CEGEPs; `core.subdivisions`: provinces and territories |
+| Mexico: colleges & universities (SEP) | SEP Catálogo de centros de trabajo, 32 state CSVs on datos.gob.mx (CC BY 4.0) | `edu.schools`: active universities, technological institutes and teacher-training colleges, with address and location; `core.subdivisions`: states. Contact-person columns are never read |
 | India: colleges & universities (AISHE) | `india/aishe/*.xlsx` or `*.csv` | `edu.schools`: every Indian college, university and standalone institution (see [india/aishe/README.md](india/aishe/README.md)) |
 
 Rules every source follows:

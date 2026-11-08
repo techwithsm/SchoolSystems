@@ -1,6 +1,9 @@
 import { stableId } from '../ids';
 import type { Row, SyncContext } from '../types';
 
+// Generic helpers live in ./common; re-exported for the India sources.
+export { cleanEmail, cleanPhone, cleanUrl, cleanYear, Tally, uniform } from './common';
+
 /** Shared by the India institution sources (AISHE file, Wikidata). */
 
 /** Normalized name used for matching and for university ids. */
@@ -108,24 +111,6 @@ export async function loadIndiaStates(ctx: SyncContext) {
   };
 }
 
-export function cleanYear(text: string | null): number | null {
-  const m = text?.match(/\b(1\d{3}|20\d{2})\b/);
-  const y = m ? Number(m[1]) : NaN;
-  return y >= 1000 && y <= new Date().getUTCFullYear() + 1 ? y : null;
-}
-
-export const cleanEmail = (s: string | null) =>
-  s && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.replace(/^mailto:/i, '')) ? s.replace(/^mailto:/i, '').toLowerCase() : null;
-export const cleanPhone = (s: string | null) => {
-  const v = s?.replace(/^tel:/i, '') ?? null;
-  return v && /^\+?[0-9 ()./-]{5,30}$/.test(v) ? v : null;
-};
-export const cleanUrl = (s: string | null) => {
-  if (!s) return null;
-  const u = /^https?:\/\//i.test(s) ? s : `https://${s}`;
-  return /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(u) ? u : null;
-};
-
 /** Standard management code from AISHE management / university type text, or null. */
 export function mapManagement(text: string | null): string | null {
   if (!text) return null;
@@ -138,19 +123,6 @@ export function mapManagement(text: string | null): string | null {
   if (t.includes('aided')) return 'government_aided';
   if (/(central|state public|government|govt|national importance|open university|local body|municipal|public)/.test(t)) return 'government';
   return null;
-}
-
-/** Counts unmapped values so the admin sees e.g. "management 'Xyz' (120 rows)". */
-export class Tally {
-  private m = new Map<string, number>();
-  add(k: string) {
-    this.m.set(k, (this.m.get(k) ?? 0) + 1);
-  }
-  report(ctx: SyncContext, label: string) {
-    for (const [k, n] of [...this.m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
-      ctx.warn(`${label} '${k}' could not be mapped (${n} rows); left empty`);
-    }
-  }
 }
 
 /**
@@ -190,10 +162,4 @@ export async function dropDuplicateCodes(ctx: SyncContext, rows: Row[]): Promise
     }
   }
   if (dropped) ctx.warn(`${dropped} rows shared an AISHE code with another row; the code was kept on the first one only.`);
-}
-
-/** All rows in one insert batch must have the same columns (missing -> null). */
-export function uniform(rows: Row[]): Row[] {
-  const cols = new Set(rows.flatMap((r) => Object.keys(r)));
-  return rows.map((r) => Object.fromEntries([...cols].map((c) => [c, r[c] ?? null])));
 }

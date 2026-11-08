@@ -2,6 +2,8 @@ import { countryFilesSource } from './sources/country-files';
 import { indiaAisheSource } from './sources/india-aishe';
 import { indiaWikidataSource } from './sources/india-wikidata';
 import { usIpedsSource } from './sources/us-ipeds';
+import { mexicoSepSource } from './sources/mx-sep';
+import { canadaWikidataSource } from './sources/wikidata-higher-ed';
 import { localCsvSource } from './sources/local-csv';
 import { unescoUisSource } from './sources/unesco-uis';
 import { worldBankSource } from './sources/world-bank';
@@ -20,6 +22,8 @@ export const SYNC_SOURCES: SyncSource[] = [
   indiaWikidataSource,
   indiaAisheSource, // official file last: its values win
   usIpedsSource,
+  canadaWikidataSource,
+  mexicoSepSource,
 ];
 
 export function getSources(keys?: string[]): SyncSource[] {
