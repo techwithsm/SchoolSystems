@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +38,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </nav>
         <div className="flex-1">{children}</div>
+        {/* Vercel Web Analytics: visitors, countries, pages, referrers. No cookies.
+            Only reports on Vercel deployments, and only once enabled in the dashboard. */}
+        <Analytics />
       </body>
     </html>
   );
