@@ -7,6 +7,7 @@ import {
   canadaWikidataSource,
   egyptWikidataSource,
   indiaWikidataExtraSource,
+  mexicoWikidataExtraSource,
   nigeriaWikidataSource,
 } from './sources/wikidata-higher-ed';
 import { localCsvSource } from './sources/local-csv';
@@ -30,6 +31,7 @@ export const SYNC_SOURCES: SyncSource[] = [
   usIpedsSource,
   canadaWikidataSource,
   mexicoSepSource,
+  mexicoWikidataExtraSource, // after SEP, so it can skip its names
   nigeriaWikidataSource,
   egyptWikidataSource,
 ];

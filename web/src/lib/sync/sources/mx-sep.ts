@@ -37,7 +37,7 @@ const HIGHER_ED: Record<string, string> = {
 const UNIVERSITY_TYPES = new Set(['UT', 'PO', 'UI', 'UP']);
 
 /** INEGI state number -> ISO 3166-2:MX. */
-const STATES: Record<string, [code: string, name: string]> = {
+export const STATES: Record<string, [code: string, name: string]> = {
   '01': ['MX-AGU', 'Aguascalientes'], '02': ['MX-BCN', 'Baja California'], '03': ['MX-BCS', 'Baja California Sur'],
   '04': ['MX-CAM', 'Campeche'], '05': ['MX-COA', 'Coahuila'], '06': ['MX-COL', 'Colima'], '07': ['MX-CHP', 'Chiapas'],
   '08': ['MX-CHH', 'Chihuahua'], '09': ['MX-CMX', 'Ciudad de México'], '10': ['MX-DUR', 'Durango'],

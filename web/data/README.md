@@ -14,6 +14,7 @@ The admin page (`/admin`) runs these sources in order:
 | Mexico: colleges & universities (SEP) | SEP Catálogo de centros de trabajo, 32 state CSVs on datos.gob.mx (CC BY 4.0) | `edu.schools`: active universities, technological institutes and teacher-training colleges, with address and location; `core.subdivisions`: states. Contact-person columns are never read |
 | Nigeria / Egypt: colleges & universities (Wikidata) | Wikidata SPARQL (CC0) | `edu.schools`: Nigerian universities, polytechnics, colleges of education; Egyptian universities and institutes. Adds Egypt to `core.countries` (inactive) and the states/governorates to `core.subdivisions` |
 | India: more colleges & universities (Wikidata, no AISHE code) | Wikidata SPARQL (CC0) | `edu.schools`: ~2,900 Indian institutions in Wikidata that have no AISHE code yet (keyed by Wikidata id); names already listed in the same state are skipped |
+| Mexico: more colleges & universities (Wikidata) | Wikidata SPARQL (CC0) | `edu.schools`: Mexican universities and institutes not already in the SEP register (name match within the state, or country-wide when Wikidata has no state) |
 | India: colleges & universities (AISHE) | `india/aishe/*.xlsx` or `*.csv` | `edu.schools`: every Indian college, university and standalone institution (see [india/aishe/README.md](india/aishe/README.md)) |
 
 Rules every source follows:
@@ -21,6 +22,8 @@ Rules every source follows:
 - **API and CSV sources never overwrite a value backed by a different source.** They report it as a *conflict* for you to review instead.
 - **Nothing is deleted.** The only exception: a citation the country file no longer makes is removed.
 - **Re-running is safe.** Ids are stable (`md5(key)::uuid`).
+
+Wikidata sources skip faculties and departments that are part of another university, and skip names already listed from another source. There is no US Wikidata gap-filler: IPEDS already lists every accredited degree-granting institution, and the extra Wikidata items were mostly university departments, branch centres and unaccredited schools.
 
 ## `countries/<ISO2>.json`
 

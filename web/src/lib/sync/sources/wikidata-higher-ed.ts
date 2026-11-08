@@ -2,6 +2,7 @@ import { chunk } from '../http';
 import { stableId } from '../ids';
 import { upsertSources } from '../citations';
 import type { Row, SyncContext, SyncSource } from '../types';
+import { STATES as MX_STATES } from './mx-sep';
 import {
   cleanCoord,
   cleanEmail,
@@ -177,9 +178,14 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
       // 1. Which items are universities / colleges (universities win).
       const kind = new Map<string, 'higher_ed_university' | 'higher_ed_college'>();
       const exclude = cfg.excludeProperty ? `FILTER NOT EXISTS { ?i wdt:${cfg.excludeProperty} [] }` : '';
+      // Skip sub-units: faculties/schools that are "part of" (P361) or have a
+      // "parent organization" (P749) that is itself a university or college,
+      // e.g. "Cockrell School of Engineering" (part of UT Austin).
+      const parentClasses = [...new Set([...cfg.universityClasses, ...cfg.collegeClasses])].map((c) => `wd:${c}`).join(' ');
+      const noSubunits = `FILTER NOT EXISTS { ?i wdt:P361|wdt:P749 ?parent . ?parent wdt:P31 ?pc . VALUES ?pc { ${parentClasses} } }`;
       const listFor = (cls: string) =>
         sparql(
-          `SELECT DISTINCT ?i WHERE { ?i wdt:P31 wd:${cls} ; wdt:P17 wd:${cfg.countryQid} . FILTER NOT EXISTS { ?i wdt:P576 [] } ${exclude} }`,
+          `SELECT DISTINCT ?i WHERE { ?i wdt:P31 wd:${cls} ; wdt:P17 wd:${cfg.countryQid} . FILTER NOT EXISTS { ?i wdt:P576 [] } ${exclude} ${noSubunits} }`,
         );
       for (const [classes, type] of [
         [cfg.collegeClasses, 'higher_ed_college'],
@@ -224,8 +230,17 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
       ]);
 
       // Names already in the database for this country (other sources), per state.
-      const existingNames = new Set<string>();
-      const normName = (s: string) => s.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9؀-ۿ]+/g, ' ').trim();
+      const existingNames = new Set<string>(); // name|state
+      const existingAnyState = new Set<string>(); // name (used when Wikidata has no state)
+      // Case-, accent- and punctuation-insensitive: 'AUTONOMA' matches 'Autónoma'.
+      const normName = (s: string) =>
+        s
+          .normalize('NFD')
+          .replace(/\p{M}/gu, '')
+          .toLowerCase()
+          .replace(/&/g, ' and ')
+          .replace(/[^a-z0-9؀-ۿ]+/g, ' ')
+          .trim();
       if (cfg.skipExistingNames) {
         for (let from = 0; ; from += 1000) {
           const { data, error } = await ctx.db
@@ -237,7 +252,10 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
             .range(from, from + 999);
           if (error) throw new Error(`edu.schools: read failed: ${error.message}`);
           for (const s of data ?? []) {
-            if (s.source_id !== sourceId) existingNames.add(`${normName(s.name)}|${s.subdivision_code ?? ''}`);
+            if (s.source_id !== sourceId) {
+              existingNames.add(`${normName(s.name)}|${s.subdivision_code ?? ''}`);
+              existingAnyState.add(normName(s.name));
+            }
           }
           if (!data || data.length < 1000) break;
         }
@@ -258,7 +276,10 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
         const iso = r.state ? (cfg.isoAliases?.[r.state] ?? r.state) : null;
         const state = iso && cfg.subdivisions[iso] ? iso : null;
         if (r.state && !state) badState.add(r.state);
-        if (cfg.skipExistingNames && existingNames.has(`${normName(name)}|${state ?? ''}`)) {
+        const isDuplicate = state
+          ? existingNames.has(`${normName(name)}|${state}`)
+          : existingAnyState.has(normName(name));
+        if (cfg.skipExistingNames && isDuplicate) {
           duplicates++;
           continue;
         }
@@ -298,6 +319,16 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
 }
 
 // -----------------------------------------------------------------------------
+// Institution types used for every country (Wikidata classes, direct P31).
+// -----------------------------------------------------------------------------
+
+/** university, public/private university, research university, private non-profit. */
+const UNIVERSITY_CLASSES = ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054'];
+/** college, engineering school, medical school, polytechnic, school of education,
+ *  university of technology, higher education institution, academy. */
+const COLLEGE_CLASSES = ['Q189004', 'Q1663017', 'Q494230', 'Q845392', 'Q2120173', 'Q1371037', 'Q38723', 'Q162633'];
+
+// -----------------------------------------------------------------------------
 // India: institutions WITHOUT an AISHE code (the AISHE-coded ones come from the
 // 'India: colleges & universities (Wikidata)' source). Fills gaps such as TKIET.
 // -----------------------------------------------------------------------------
@@ -313,8 +344,8 @@ export const indiaWikidataExtraSource = createWikidataHigherEdSource({
   variant: 'no_aishe',
   excludeProperty: 'P6392',
   skipExistingNames: true,
-  universityClasses: ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054', 'Q3520135', 'Q47531586'],
-  collegeClasses: ['Q189004', 'Q1663017', 'Q494230', 'Q845392', 'Q2120173', 'Q1371037', 'Q38723'],
+  universityClasses: [...UNIVERSITY_CLASSES, 'Q3520135', 'Q47531586'], // + deemed university, Institute of National Importance
+  collegeClasses: COLLEGE_CLASSES,
   isoAliases: { 'IN-OR': 'IN-OD', 'IN-CT': 'IN-CG', 'IN-TG': 'IN-TS', 'IN-UT': 'IN-UK' },
   subdivisions: {
     'IN-AP': ['Andhra Pradesh', 'state'], 'IN-AR': ['Arunachal Pradesh', 'state'], 'IN-AS': ['Assam', 'state'],
@@ -346,8 +377,9 @@ export const nigeriaWikidataSource = createWikidataHigherEdSource({
   iso2: 'NG',
   countryQid: 'Q1033',
   languages: ['en'],
-  universityClasses: ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054'],
-  collegeClasses: ['Q189004', 'Q845392', 'Q2120173', 'Q1371037', 'Q38723'],
+  universityClasses: UNIVERSITY_CLASSES,
+  collegeClasses: COLLEGE_CLASSES,
+  skipExistingNames: true,
   universityNamePattern: /\buniversity\b/i,
   subdivisions: {
     'NG-AB': ['Abia', 'state'], 'NG-AD': ['Adamawa', 'state'], 'NG-AK': ['Akwa Ibom', 'state'],
@@ -378,8 +410,9 @@ export const egyptWikidataSource = createWikidataHigherEdSource({
   iso2: 'EG',
   countryQid: 'Q79',
   languages: ['en', 'ar'],
-  universityClasses: ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054'],
-  collegeClasses: ['Q189004', 'Q38723', 'Q162633', 'Q2120173', 'Q1371037'],
+  universityClasses: UNIVERSITY_CLASSES,
+  collegeClasses: COLLEGE_CLASSES,
+  skipExistingNames: true,
   universityNamePattern: /\buniversity\b|جامعة/i,
   country: {
     iso3: 'EGY',
@@ -413,8 +446,9 @@ export const canadaWikidataSource = createWikidataHigherEdSource({
   iso2: 'CA',
   countryQid: 'Q16',
   languages: ['en', 'fr'],
-  universityClasses: ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054'],
-  collegeClasses: ['Q189004', 'Q1336920', 'Q1110056', 'Q108415947', 'Q1371037'],
+  universityClasses: UNIVERSITY_CLASSES,
+  collegeClasses: [...COLLEGE_CLASSES, 'Q1336920', 'Q1110056', 'Q108415947'], // + community college, CEGEP, Ontario college
+  skipExistingNames: true,
   subdivisions: {
     'CA-AB': ['Alberta', 'province'],
     'CA-BC': ['British Columbia', 'province'],
@@ -430,4 +464,27 @@ export const canadaWikidataSource = createWikidataHigherEdSource({
     'CA-NU': ['Nunavut', 'territory'],
     'CA-YT': ['Yukon', 'territory'],
   },
+});
+
+// -----------------------------------------------------------------------------
+// Mexico: Wikidata items not already in the official SEP register (matched by
+// name within the state, as Wikidata has no SEP work-centre key).
+// -----------------------------------------------------------------------------
+
+export const mexicoWikidataExtraSource = createWikidataHigherEdSource({
+  key: 'mx_wikidata_extra',
+  label: 'Mexico: more colleges & universities (Wikidata)',
+  description:
+    'Mexican universities and institutes in Wikidata whose name is not already listed in the same state from the SEP register. Run after the SEP source.',
+  iso2: 'MX',
+  countryQid: 'Q96',
+  languages: ['es', 'en'],
+  variant: 'extra',
+  skipExistingNames: true,
+  universityClasses: UNIVERSITY_CLASSES,
+  collegeClasses: COLLEGE_CLASSES,
+  universityNamePattern: /universidad|university/i,
+  subdivisions: Object.fromEntries(
+    Object.values(MX_STATES).map(([code, name]) => [code, [name, code === 'MX-CMX' ? 'federal_entity' : 'state']]),
+  ),
 });
