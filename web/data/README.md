@@ -13,6 +13,7 @@ The admin page (`/admin`) runs these sources in order:
 | Canada: colleges & universities (Wikidata) | Wikidata SPARQL (CC0) | `edu.schools`: Canadian universities, colleges, CEGEPs; `core.subdivisions`: provinces and territories |
 | Mexico: colleges & universities (SEP) | SEP Catálogo de centros de trabajo, 32 state CSVs on datos.gob.mx (CC BY 4.0) | `edu.schools`: active universities, technological institutes and teacher-training colleges, with address and location; `core.subdivisions`: states. Contact-person columns are never read |
 | Nigeria / Egypt: colleges & universities (Wikidata) | Wikidata SPARQL (CC0) | `edu.schools`: Nigerian universities, polytechnics, colleges of education; Egyptian universities and institutes. Adds Egypt to `core.countries` (inactive) and the states/governorates to `core.subdivisions` |
+| India: more colleges & universities (Wikidata, no AISHE code) | Wikidata SPARQL (CC0) | `edu.schools`: ~2,900 Indian institutions in Wikidata that have no AISHE code yet (keyed by Wikidata id); names already listed in the same state are skipped |
 | India: colleges & universities (AISHE) | `india/aishe/*.xlsx` or `*.csv` | `edu.schools`: every Indian college, university and standalone institution (see [india/aishe/README.md](india/aishe/README.md)) |
 
 Rules every source follows:

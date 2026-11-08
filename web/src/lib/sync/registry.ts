@@ -3,7 +3,12 @@ import { indiaAisheSource } from './sources/india-aishe';
 import { indiaWikidataSource } from './sources/india-wikidata';
 import { usIpedsSource } from './sources/us-ipeds';
 import { mexicoSepSource } from './sources/mx-sep';
-import { canadaWikidataSource, egyptWikidataSource, nigeriaWikidataSource } from './sources/wikidata-higher-ed';
+import {
+  canadaWikidataSource,
+  egyptWikidataSource,
+  indiaWikidataExtraSource,
+  nigeriaWikidataSource,
+} from './sources/wikidata-higher-ed';
 import { localCsvSource } from './sources/local-csv';
 import { unescoUisSource } from './sources/unesco-uis';
 import { worldBankSource } from './sources/world-bank';
@@ -20,7 +25,8 @@ export const SYNC_SOURCES: SyncSource[] = [
   worldBankSource,
   unescoUisSource,
   indiaWikidataSource,
-  indiaAisheSource, // official file last: its values win
+  indiaAisheSource, // official file: its values win over Wikidata
+  indiaWikidataExtraSource, // after the AISHE-coded sources, so it can skip their names
   usIpedsSource,
   canadaWikidataSource,
   mexicoSepSource,

@@ -37,6 +37,18 @@ export interface WikidataCountryConfig {
   subdivisions: Record<string, [name: string, type: string]>;
   /** Items of a college class whose name matches this are counted as universities. */
   universityNamePattern?: RegExp;
+  /** Skip items that have this property (e.g. 'P6392' AISHE code: covered by another source). */
+  excludeProperty?: string;
+  /** Old ISO 3166-2 codes still used in Wikidata -> current code (e.g. IN-OR -> IN-OD). */
+  isoAliases?: Record<string, string>;
+  /**
+   * Skip an item when the country already has an institution with the same
+   * normalized name in the same state/province (avoids duplicates of rows
+   * that came from another source under a different id).
+   */
+  skipExistingNames?: boolean;
+  /** Distinguishes several Wikidata sources for one country (ids and citation). */
+  variant?: string;
   /**
    * For countries not in the seed: created in core.countries (inactive) and,
    * if needed, its UN M49 region in core.regions. Existing rows are left as they are.
@@ -164,9 +176,10 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
 
       // 1. Which items are universities / colleges (universities win).
       const kind = new Map<string, 'higher_ed_university' | 'higher_ed_college'>();
+      const exclude = cfg.excludeProperty ? `FILTER NOT EXISTS { ?i wdt:${cfg.excludeProperty} [] }` : '';
       const listFor = (cls: string) =>
         sparql(
-          `SELECT DISTINCT ?i WHERE { ?i wdt:P31 wd:${cls} ; wdt:P17 wd:${cfg.countryQid} . FILTER NOT EXISTS { ?i wdt:P576 [] } }`,
+          `SELECT DISTINCT ?i WHERE { ?i wdt:P31 wd:${cls} ; wdt:P17 wd:${cfg.countryQid} . FILTER NOT EXISTS { ?i wdt:P576 [] } ${exclude} }`,
         );
       for (const [classes, type] of [
         [cfg.collegeClasses, 'higher_ed_college'],
@@ -193,13 +206,14 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
       ).flat();
       if (failedBatches > batches.length / 4) throw new Error(`Wikidata: ${failedBatches} of ${batches.length} batches failed; try again later.`);
 
-      const sourceId = stableId(`${cfg.iso2}/src/wikidata_higher_ed`);
+      const variant = cfg.variant ? `_${cfg.variant}` : '';
+      const sourceId = stableId(`${cfg.iso2}/src/wikidata_higher_ed${variant}`);
       await upsertSources(ctx, [
         {
           id: sourceId,
           title: `Wikidata: higher education institutions in ${cfg.label.split(':')[0]}`,
-          // Unique per country: core.sources allows one row per (url, accessed_on).
-          url: `https://www.wikidata.org/wiki/${cfg.countryQid}`,
+          // Unique per source: core.sources allows one row per (url, accessed_on).
+          url: `https://www.wikidata.org/wiki/${cfg.countryQid}${cfg.variant ? `#${cfg.variant}` : ''}`,
           publisher: 'Wikidata (Wikimedia Foundation)',
           source_type_code: 'other',
           country_iso2: cfg.iso2,
@@ -209,8 +223,29 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
         },
       ]);
 
+      // Names already in the database for this country (other sources), per state.
+      const existingNames = new Set<string>();
+      const normName = (s: string) => s.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9؀-ۿ]+/g, ' ').trim();
+      if (cfg.skipExistingNames) {
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await ctx.db
+            .schema('edu')
+            .from('schools')
+            .select('name, subdivision_code, source_id')
+            .eq('country_iso2', cfg.iso2)
+            .order('id')
+            .range(from, from + 999);
+          if (error) throw new Error(`edu.schools: read failed: ${error.message}`);
+          for (const s of data ?? []) {
+            if (s.source_id !== sourceId) existingNames.add(`${normName(s.name)}|${s.subdivision_code ?? ''}`);
+          }
+          if (!data || data.length < 1000) break;
+        }
+      }
+
       const badState = new Tally();
       let noName = 0;
+      let duplicates = 0;
       const rows: Row[] = [];
       for (const r of detailRows) {
         const id = qid(r.i);
@@ -220,12 +255,17 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
           noName++;
           continue;
         }
-        const state = r.state && cfg.subdivisions[r.state] ? r.state : null;
+        const iso = r.state ? (cfg.isoAliases?.[r.state] ?? r.state) : null;
+        const state = iso && cfg.subdivisions[iso] ? iso : null;
         if (r.state && !state) badState.add(r.state);
+        if (cfg.skipExistingNames && existingNames.has(`${normName(name)}|${state ?? ''}`)) {
+          duplicates++;
+          continue;
+        }
         const stateName = state ? cfg.subdivisions[state][0] : null;
         const { lat, lon } = parsePoint(r.coords);
         rows.push({
-          id: stableId(`${cfg.iso2}/wikidata/${id}`),
+          id: stableId(`${cfg.iso2}/wikidata/${id}`), // same item -> same row, whichever variant
           country_iso2: cfg.iso2,
           subdivision_code: state,
           city: r.place && r.place !== stateName ? r.place : null,
@@ -251,10 +291,48 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
       const unis = rows.filter((r) => r.school_type_code === 'higher_ed_university').length;
       ctx.warn(`Wikidata: ${unis} universities and ${rows.length - unis} colleges.`);
       if (noName) ctx.warn(`${noName} items had no name in ${cfg.languages.join('/')} and were skipped.`);
+      if (duplicates) ctx.warn(`${duplicates} items skipped: same name already listed in the same state from another source.`);
       badState.report(ctx, 'Province/state code');
     },
   };
 }
+
+// -----------------------------------------------------------------------------
+// India: institutions WITHOUT an AISHE code (the AISHE-coded ones come from the
+// 'India: colleges & universities (Wikidata)' source). Fills gaps such as TKIET.
+// -----------------------------------------------------------------------------
+
+export const indiaWikidataExtraSource = createWikidataHigherEdSource({
+  key: 'in_wikidata_extra',
+  label: 'India: more colleges & universities (Wikidata, no AISHE code)',
+  description:
+    'Indian universities, engineering and medical colleges, polytechnics and institutes that are in Wikidata but have no AISHE code yet (~1,500). Skips names already listed in the same state. Takes about a minute.',
+  iso2: 'IN',
+  countryQid: 'Q668',
+  languages: ['en'],
+  variant: 'no_aishe',
+  excludeProperty: 'P6392',
+  skipExistingNames: true,
+  universityClasses: ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054', 'Q3520135', 'Q47531586'],
+  collegeClasses: ['Q189004', 'Q1663017', 'Q494230', 'Q845392', 'Q2120173', 'Q1371037', 'Q38723'],
+  isoAliases: { 'IN-OR': 'IN-OD', 'IN-CT': 'IN-CG', 'IN-TG': 'IN-TS', 'IN-UT': 'IN-UK' },
+  subdivisions: {
+    'IN-AP': ['Andhra Pradesh', 'state'], 'IN-AR': ['Arunachal Pradesh', 'state'], 'IN-AS': ['Assam', 'state'],
+    'IN-BR': ['Bihar', 'state'], 'IN-CG': ['Chhattisgarh', 'state'], 'IN-GA': ['Goa', 'state'],
+    'IN-GJ': ['Gujarat', 'state'], 'IN-HR': ['Haryana', 'state'], 'IN-HP': ['Himachal Pradesh', 'state'],
+    'IN-JH': ['Jharkhand', 'state'], 'IN-KA': ['Karnataka', 'state'], 'IN-KL': ['Kerala', 'state'],
+    'IN-MP': ['Madhya Pradesh', 'state'], 'IN-MH': ['Maharashtra', 'state'], 'IN-MN': ['Manipur', 'state'],
+    'IN-ML': ['Meghalaya', 'state'], 'IN-MZ': ['Mizoram', 'state'], 'IN-NL': ['Nagaland', 'state'],
+    'IN-OD': ['Odisha', 'state'], 'IN-PB': ['Punjab', 'state'], 'IN-RJ': ['Rajasthan', 'state'],
+    'IN-SK': ['Sikkim', 'state'], 'IN-TN': ['Tamil Nadu', 'state'], 'IN-TS': ['Telangana', 'state'],
+    'IN-TR': ['Tripura', 'state'], 'IN-UP': ['Uttar Pradesh', 'state'], 'IN-UK': ['Uttarakhand', 'state'],
+    'IN-WB': ['West Bengal', 'state'],
+    'IN-AN': ['Andaman and Nicobar Islands', 'union_territory'], 'IN-CH': ['Chandigarh', 'union_territory'],
+    'IN-DH': ['Dadra and Nagar Haveli and Daman and Diu', 'union_territory'], 'IN-DL': ['Delhi', 'union_territory'],
+    'IN-JK': ['Jammu and Kashmir', 'union_territory'], 'IN-LA': ['Ladakh', 'union_territory'],
+    'IN-LD': ['Lakshadweep', 'union_territory'], 'IN-PY': ['Puducherry', 'union_territory'],
+  },
+});
 
 // -----------------------------------------------------------------------------
 // Nigeria
