@@ -53,9 +53,11 @@ async function SearchArea({ searchParams }: { searchParams: PageProps<'/'>['sear
 
   const searchKey = filtersToHref({ ...filters, sel: '' });
   return (
-    <div className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)_minmax(0,1.1fr)]">
+    // Widths: <640px stacked; 640-1023px filters | results (details inline under
+    // the chosen result); >=1024px filters | results | details panel.
+    <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[250px_minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-5">
       {/* Left: filters */}
-      <aside className="panel-scroll lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-auto">
+      <aside className="panel-scroll sm:sticky sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:self-start sm:overflow-auto">
         <SearchForm key={`form:${searchKey}`} filters={filters} management={management} {...options} />
       </aside>
 
