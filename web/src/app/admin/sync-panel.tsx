@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { runSyncAction, type SyncActionState } from './actions';
 import type { SourceResult } from '@/lib/sync/types';
 
@@ -10,18 +10,61 @@ const initialState: SyncActionState = { summary: null, error: null };
 
 export function SyncPanel({ sources }: { sources: SourceInfo[] }) {
   const [state, formAction, pending] = useActionState(runSyncAction, initialState);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(sources.map((s) => s.key)));
+  const allSelected = selected.size === sources.length;
+  const noneSelected = selected.size === 0;
+
+  const toggle = (key: string, on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
+  const smallButton =
+    'rounded-md border border-cyan-200 bg-white px-3 py-1 text-sm font-medium text-teal-800 hover:border-teal-400 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <section className="space-y-6">
-      <form action={formAction} className="space-y-4 rounded-lg border border-zinc-200 p-5 dark:border-zinc-800">
+      <form action={formAction} className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
         <fieldset className="space-y-3" disabled={pending}>
-          <legend className="mb-2 font-semibold">Sources to sync</legend>
+          <legend className="sr-only">Sources to sync</legend>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-100 pb-3">
+            <span className="font-semibold">
+              Sources to sync{' '}
+              <span className="text-sm font-normal text-zinc-500">
+                ({selected.size} of {sources.length} selected)
+              </span>
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={smallButton}
+                disabled={allSelected}
+                onClick={() => setSelected(new Set(sources.map((s) => s.key)))}
+              >
+                Select all
+              </button>
+              <button type="button" className={smallButton} disabled={noneSelected} onClick={() => setSelected(new Set())}>
+                Deselect all
+              </button>
+            </div>
+          </div>
+
           {sources.map((s) => (
-            <label key={s.key} className="flex gap-3">
-              <input type="checkbox" name="source" value={s.key} defaultChecked className="mt-1" />
+            <label key={s.key} className="flex cursor-pointer gap-3 rounded-md p-1 hover:bg-cyan-50/60">
+              <input
+                type="checkbox"
+                name="source"
+                value={s.key}
+                checked={selected.has(s.key)}
+                onChange={(e) => toggle(s.key, e.currentTarget.checked)}
+                className="mt-1 accent-teal-600"
+              />
               <span>
                 <span className="font-medium">{s.label}</span>
-                <span className="block text-sm text-zinc-600 dark:text-zinc-400">{s.description}</span>
+                <span className="block text-sm text-zinc-600">{s.description}</span>
               </span>
             </label>
           ))}
@@ -32,7 +75,7 @@ export function SyncPanel({ sources }: { sources: SourceInfo[] }) {
             type="submit"
             name="mode"
             value="sync"
-            disabled={pending}
+            disabled={pending || noneSelected}
             className="rounded-md bg-teal-600 px-4 py-2 font-medium text-white hover:bg-teal-700 disabled:cursor-wait disabled:opacity-60"
           >
             Sync data
@@ -41,12 +84,13 @@ export function SyncPanel({ sources }: { sources: SourceInfo[] }) {
             type="submit"
             name="mode"
             value="preview"
-            disabled={pending}
+            disabled={pending || noneSelected}
             className="rounded-md border border-zinc-300 px-4 py-2 font-medium hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Preview changes
           </button>
           {pending && <span className="text-sm text-zinc-500">Working… this can take a minute.</span>}
+          {!pending && noneSelected && <span className="text-sm text-zinc-500">Select at least one source.</span>}
         </div>
       </form>
 
