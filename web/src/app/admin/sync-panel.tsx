@@ -33,7 +33,7 @@ export function SyncPanel({ sources }: { sources: SourceInfo[] }) {
             name="mode"
             value="sync"
             disabled={pending}
-            className="rounded-md bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
+            className="rounded-md bg-teal-600 px-4 py-2 font-medium text-white hover:bg-teal-700 disabled:cursor-wait disabled:opacity-60"
           >
             Sync data
           </button>

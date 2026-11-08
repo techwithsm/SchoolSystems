@@ -1,10 +1,12 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { connection } from 'next/server';
+import { InstitutionDetailView } from '@/components/institution-detail';
 import {
   buildOptions,
   filtersToHref,
   getFacets,
+  getInstitution,
   getManagementOptions,
   hasAnyFilter,
   PAGE_SIZE,
@@ -19,21 +21,21 @@ const fmt = new Intl.NumberFormat('en');
 
 export default function Home({ searchParams }: PageProps<'/'>) {
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-semibold">Find a school, college or university</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Search by name, country, state, city and type. No sign-up needed.
-        </p>
+    <main className="mx-auto w-full max-w-[1600px] px-4 py-6">
+      <header className="mb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-sky-950 sm:text-3xl">
+          Find a school, college or university
+        </h1>
+        <p className="text-sky-700">Filter on the left, pick a result to see its details. No sign-up needed.</p>
       </header>
-      <Suspense fallback={<p className="text-zinc-500">Loading search…</p>}>
+      <Suspense fallback={<Loading text="Loading search…" />}>
         <SearchArea searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-/** Reads the URL filters, so it renders per request behind the Suspense boundary. */
+/** Reads the URL, so it renders per request behind the Suspense boundary. */
 async function SearchArea({ searchParams }: { searchParams: PageProps<'/'>['searchParams'] }) {
   const filters = parseFilters(await searchParams);
   await connection();
@@ -47,19 +49,36 @@ async function SearchArea({ searchParams }: { searchParams: PageProps<'/'>['sear
   }
 
   const options = buildOptions(facets, filters);
-  if (options.total === 0) {
-    return <Notice>No institutions have been published yet. Please check back soon.</Notice>;
-  }
+  if (options.total === 0) return <Notice>No institutions have been published yet. Please check back soon.</Notice>;
 
-  const href = filtersToHref(filters);
+  const searchKey = filtersToHref({ ...filters, sel: '' });
   return (
-    <div className="space-y-6">
-      {/* keys change with the URL: the form resets its default values and the
-          results show "Searching…" again. Sibling keys must differ. */}
-      <SearchForm key={`form:${href}`} filters={filters} management={management} {...options} />
-      <Suspense key={`results:${href}`} fallback={<p className="text-zinc-500">Searching…</p>}>
-        <Results filters={filters} />
-      </Suspense>
+    <div className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)_minmax(0,1.1fr)]">
+      {/* Left: filters */}
+      <aside className="panel-scroll lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-auto">
+        <SearchForm key={`form:${searchKey}`} filters={filters} management={management} {...options} />
+      </aside>
+
+      {/* Middle: results */}
+      <section aria-label="Search results" className="min-w-0">
+        <Suspense key={`results:${searchKey}:${filters.page}`} fallback={<Loading text="Searching…" />}>
+          <Results filters={filters} />
+        </Suspense>
+      </section>
+
+      {/* Right (desktop): details of the selected institution */}
+      <aside
+        aria-label="Details"
+        className="panel-scroll hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-auto"
+      >
+        {filters.sel ? (
+          <Suspense key={`panel:${filters.sel}`} fallback={<Loading text="Loading details…" />}>
+            <DetailPanel filters={filters} />
+          </Suspense>
+        ) : (
+          <EmptyPanel />
+        )}
+      </aside>
     </div>
   );
 }
@@ -73,8 +92,6 @@ async function Results({ filters }: { filters: Filters }) {
     return <Notice>Search failed. Please try again.</Notice>;
   }
   const { rows, total } = result;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
   if (total === 0) {
     return (
       <Notice>
@@ -83,77 +100,144 @@ async function Results({ filters }: { filters: Filters }) {
     );
   }
 
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = (filters.page - 1) * PAGE_SIZE + 1;
   return (
-    <section aria-label="Search results" className="space-y-4">
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        {fmt.format(total)} result{total === 1 ? '' : 's'}
-        {rows.length > 0 && ` · showing ${fmt.format(start)}–${fmt.format(start + rows.length - 1)}`}
-      </p>
-      <ul className="space-y-3">
-        {rows.map((r) => (
-          <ResultCard key={r.id} row={r} />
-        ))}
-      </ul>
-      <Pagination filters={filters} pages={pages} />
-    </section>
-  );
-}
-
-function ResultCard({ row }: { row: InstitutionRow }) {
-  const place = [row.city, row.district, row.subdivision_name, row.country_name].filter(Boolean).join(', ');
-  return (
-    <li className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">
-          <Link href={`/institutions/${row.id}`} className="hover:underline">
-            {row.name}
-          </Link>
-        </h2>
-        <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-          {row.school_type_label}
-        </span>
+        <p className="text-sm text-sky-800">
+          <span className="text-lg font-semibold text-sky-950">{fmt.format(total)}</span> result{total === 1 ? '' : 's'}
+          {rows.length > 0 && (
+            <span className="text-sky-600">
+              {' '}
+              · {fmt.format(start)}–{fmt.format(start + rows.length - 1)}
+            </span>
+          )}
+        </p>
+        <ActiveFilters filters={filters} />
       </div>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{place}</p>
-      <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        {row.local_type && <Item label="Category">{row.local_type}</Item>}
-        {row.management_label && <Item label="Management">{row.management_label}</Item>}
-        {row.year_established && <Item label="Established">{row.year_established}</Item>}
-        {row.affiliated_to_id && row.affiliated_to_name && (
-          <Item label="Affiliated to">
-            <Link href={`/institutions/${row.affiliated_to_id}`} className="underline">
-              {row.affiliated_to_name}
-            </Link>
-          </Item>
-        )}
-        {row.website && (
-          <Item label="Website">
-            <a href={row.website} target="_blank" rel="noopener noreferrer nofollow" className="underline">
-              {row.website.replace(/^https?:\/\//, '')}
-            </a>
-          </Item>
-        )}
-      </dl>
-    </li>
+
+      <ul className="space-y-2">
+        {rows.map((r) => {
+          const selected = r.id === filters.sel;
+          return (
+            <li key={r.id}>
+              <ResultCard row={r} selected={selected} href={filtersToHref(filters, { sel: selected ? '' : r.id })} />
+              {/* Phones/tablets: details open right under the chosen result. */}
+              {selected && (
+                <div className="mt-2 lg:hidden">
+                  <Suspense fallback={<Loading text="Loading details…" />}>
+                    <DetailPanel filters={filters} />
+                  </Suspense>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <Pagination filters={filters} pages={pages} />
+    </div>
   );
 }
 
-function Item({ label, children }: { label: string; children: React.ReactNode }) {
+function ResultCard({ row, selected, href }: { row: InstitutionRow; selected: boolean; href: string }) {
+  const place = [row.city ?? row.district, row.subdivision_name, row.country_name].filter(Boolean).join(', ');
+  const meta = [row.local_type, row.management_label, row.year_established ? `Est. ${row.year_established}` : null].filter(Boolean);
   return (
-    <div className="flex gap-1">
-      <dt className="text-zinc-500">{label}:</dt>
-      <dd>{children}</dd>
+    <Link
+      href={href}
+      scroll={false}
+      aria-current={selected ? 'true' : undefined}
+      className={`group block rounded-xl border bg-white p-4 shadow-sm transition ${
+        selected
+          ? 'border-teal-400 bg-gradient-to-r from-cyan-50 to-white ring-2 ring-cyan-200'
+          : 'border-cyan-100 hover:border-cyan-300 hover:shadow-md'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h2 className={`font-semibold leading-snug ${selected ? 'text-teal-800' : 'text-sky-950 group-hover:text-teal-700'}`}>
+          {row.name}
+        </h2>
+        <TypeBadge code={row.school_type_code} label={row.school_type_label} />
+      </div>
+      {place && <p className="mt-1 text-sm text-sky-700">📍 {place}</p>}
+      {meta.length > 0 && <p className="mt-1 line-clamp-1 text-xs text-sky-600">{meta.join(' · ')}</p>}
+    </Link>
+  );
+}
+
+function TypeBadge({ code, label }: { code: string; label: string }) {
+  const color =
+    code === 'higher_ed_university'
+      ? 'bg-teal-100 text-teal-800'
+      : code === 'higher_ed_college'
+        ? 'bg-cyan-100 text-cyan-800'
+        : 'bg-sky-100 text-sky-800';
+  return <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>{label}</span>;
+}
+
+async function DetailPanel({ filters }: { filters: Filters }) {
+  let d;
+  try {
+    d = await getInstitution(filters.sel);
+  } catch (err) {
+    console.error(err);
+    return <Notice>Could not load the details. Please try again.</Notice>;
+  }
+  if (!d) return <Notice>This institution could not be found.</Notice>;
+  return (
+    <InstitutionDetailView
+      d={d}
+      hrefFor={(id) => filtersToHref(filters, { sel: id })}
+      closeHref={filtersToHref(filters, { sel: '' })}
+    />
+  );
+}
+
+function EmptyPanel() {
+  return (
+    <div className="grid min-h-64 place-items-center rounded-2xl border-2 border-dashed border-cyan-200 bg-white/60 p-8 text-center">
+      <div>
+        <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-sky-100 to-teal-100 text-2xl">
+          🏫
+        </div>
+        <p className="font-medium text-sky-900">Select a result</p>
+        <p className="text-sm text-sky-600">Its address, contact details and more will appear here.</p>
+      </div>
+    </div>
+  );
+}
+
+function ActiveFilters({ filters }: { filters: Filters }) {
+  const chips: { label: string; href: string }[] = [];
+  if (filters.q) chips.push({ label: `“${filters.q}”`, href: filtersToHref(filters, { q: '', page: 1, sel: '' }) });
+  if (filters.place) chips.push({ label: filters.place, href: filtersToHref(filters, { place: '', page: 1, sel: '' }) });
+  if (chips.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {chips.map((c) => (
+        <Link
+          key={c.label}
+          href={c.href}
+          className="rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-medium text-cyan-900 hover:bg-cyan-200"
+          aria-label={`Remove filter ${c.label}`}
+        >
+          {c.label} ×
+        </Link>
+      ))}
     </div>
   );
 }
 
 function Pagination({ filters, pages }: { filters: Filters; pages: number }) {
   if (pages <= 1) return null;
-  const prev = filters.page > 1 ? filtersToHref(filters, { page: filters.page - 1 }) : null;
-  const next = filters.page < pages ? filtersToHref(filters, { page: filters.page + 1 }) : null;
-  const linkClass = 'rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900';
+  const prev = filters.page > 1 ? filtersToHref(filters, { page: filters.page - 1, sel: '' }) : null;
+  const next = filters.page < pages ? filtersToHref(filters, { page: filters.page + 1, sel: '' }) : null;
+  const linkClass =
+    'rounded-lg border border-cyan-200 bg-white px-3 py-1.5 text-sm font-medium text-teal-800 shadow-sm hover:border-teal-400 hover:bg-cyan-50';
   return (
-    <nav aria-label="Pages" className="flex items-center justify-between">
+    <nav aria-label="Pages" className="flex items-center justify-between pt-2">
       {prev ? (
         <Link href={prev} className={linkClass}>
           ← Previous
@@ -161,7 +245,7 @@ function Pagination({ filters, pages }: { filters: Filters; pages: number }) {
       ) : (
         <span />
       )}
-      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+      <span className="text-sm text-sky-700">
         Page {fmt.format(filters.page)} of {fmt.format(pages)}
       </span>
       {next ? (
@@ -175,6 +259,15 @@ function Pagination({ filters, pages }: { filters: Filters; pages: number }) {
   );
 }
 
+function Loading({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-cyan-100 bg-white p-4 text-sm text-sky-700">
+      <span className="h-3 w-3 animate-pulse rounded-full bg-teal-400" />
+      {text}
+    </div>
+  );
+}
+
 function Notice({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-md bg-zinc-50 p-4 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">{children}</p>;
+  return <p className="rounded-xl border border-cyan-100 bg-white p-4 text-sky-800">{children}</p>;
 }

@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { cacheLife, cacheTag } from 'next/cache';
 
 /** Cache tag for directory filter data; cleared after an admin sync. */
@@ -20,6 +21,7 @@ export interface Filters {
   type: string; // edu.school_types code
   management: string; // edu.management_types code
   page: number;
+  sel: string; // id of the institution shown in the detail panel ('' = none)
 }
 
 type RawParams = Record<string, string | string[] | undefined>;
@@ -51,6 +53,7 @@ export function parseFilters(params: RawParams): Filters {
     type: /^[a-z_]{1,40}$/.test(type) ? type : '',
     management: /^[a-z_]{1,40}$/.test(management) ? management : '',
     page: Number.isFinite(page) && page >= 1 ? Math.min(page, MAX_PAGE) : 1,
+    sel: isUuid(first(params.sel)) ? first(params.sel).toLowerCase() : '',
   };
 }
 
@@ -66,6 +69,7 @@ export function filtersToHref(f: Filters, overrides: Partial<Filters> = {}): str
     if (merged[key]) sp.set(key, merged[key]);
   }
   if (merged.page > 1) sp.set('page', String(merged.page));
+  if (merged.sel) sp.set('sel', merged.sel);
   const qs = sp.toString();
   return qs ? `/?${qs}` : '/';
 }
@@ -226,7 +230,8 @@ export interface InstitutionDetail extends InstitutionRow {
   affiliatedCount: number;
 }
 
-export async function getInstitution(id: string): Promise<InstitutionDetail | null> {
+/** Cached per request: the panel and the mobile inline view share one fetch. */
+export const getInstitution = cache(async (id: string): Promise<InstitutionDetail | null> => {
   if (!isUuid(id)) return null;
   const db = createPublicClient();
 
@@ -261,4 +266,4 @@ export async function getInstitution(id: string): Promise<InstitutionDetail | nu
     affiliatedColleges: (collegesRes.data ?? []) as InstitutionDetail['affiliatedColleges'],
     affiliatedCount: collegesRes.count ?? 0,
   };
-}
+});

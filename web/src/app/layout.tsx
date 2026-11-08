@@ -25,12 +25,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <nav className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3">
-            <Link href="/" className="font-semibold">
+        <nav className="bg-gradient-to-r from-sky-500 via-cyan-500 to-teal-500 text-white shadow-sm">
+          <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between px-4 py-3">
+            <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-white/20 text-base">🎓</span>
               School Systems Directory
             </Link>
-            <Link href="/admin" className="text-sm text-zinc-500 hover:underline">
+            <Link href="/admin" className="rounded-md px-3 py-1 text-sm text-white/90 hover:bg-white/15">
               Admin
             </Link>
           </div>

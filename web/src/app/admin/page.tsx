@@ -35,7 +35,7 @@ async function AdminArea() {
     return (
       <p>
         Please{' '}
-        <Link href="/login" className="font-medium text-emerald-700 underline">
+        <Link href="/login" className="font-medium text-teal-700 underline">
           sign in
         </Link>{' '}
         to use the admin area.

@@ -16,12 +16,14 @@ interface Props {
 const fmt = new Intl.NumberFormat('en');
 const withCount = (o: Option) => (o.count !== undefined ? `${o.label} (${fmt.format(o.count)})` : o.label);
 
-const inputClass =
-  'mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50';
+const fieldClass =
+  'mt-1 w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-sm text-sky-950 shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:bg-sky-50 disabled:text-sky-400';
+const labelClass = 'block text-xs font-semibold uppercase tracking-wide text-sky-700';
 
 /**
- * Search filters. A plain GET form (works without JavaScript); with JavaScript,
+ * Filter sidebar. A plain GET form (works without JavaScript); with JavaScript,
  * dropdowns apply immediately and next/form navigates without a full reload.
+ * Submitting clears the selected institution (sel is not a form field).
  */
 export function SearchForm({ filters, countries, states, types, management }: Props) {
   const submit = (e: ChangeEvent<HTMLSelectElement>) => e.currentTarget.form?.requestSubmit();
@@ -34,22 +36,29 @@ export function SearchForm({ filters, countries, states, types, management }: Pr
   };
 
   return (
-    <Form action="/" className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800">
-      <label className="block sm:col-span-2 lg:col-span-3">
-        <span className="text-sm font-medium">Name of school, college or university</span>
+    <Form action="/" className="space-y-4 rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-sky-950">Filters</h2>
+        <Link href="/" className="text-xs font-medium text-teal-700 hover:underline">
+          Clear all
+        </Link>
+      </div>
+
+      <label className="block">
+        <span className={labelClass}>Name</span>
         <input
           name="q"
           type="search"
           defaultValue={filters.q}
-          placeholder="e.g. Fergusson College"
+          placeholder="School, college or university"
           maxLength={100}
-          className={inputClass}
+          className={fieldClass}
         />
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium">Country</span>
-        <select name="country" defaultValue={filters.country} onChange={changeCountry} className={inputClass}>
+        <span className={labelClass}>Country</span>
+        <select name="country" defaultValue={filters.country} onChange={changeCountry} className={fieldClass}>
           <option value="">All countries</option>
           {countries.map((o) => (
             <option key={o.value} value={o.value}>
@@ -60,13 +69,13 @@ export function SearchForm({ filters, countries, states, types, management }: Pr
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium">State / province</span>
+        <span className={labelClass}>State / province</span>
         <select
           name="state"
           defaultValue={filters.state}
           onChange={submit}
           disabled={!filters.country || states.length === 0}
-          className={inputClass}
+          className={fieldClass}
         >
           <option value="">{filters.country ? 'All states' : 'Choose a country first'}</option>
           {states.map((o) => (
@@ -78,25 +87,23 @@ export function SearchForm({ filters, countries, states, types, management }: Pr
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium">City or district</span>
-        <input name="place" type="search" defaultValue={filters.place} placeholder="e.g. Pune" maxLength={100} className={inputClass} />
+        <span className={labelClass}>City or district</span>
+        <input name="place" type="search" defaultValue={filters.place} placeholder="e.g. Pune, Toronto" maxLength={100} className={fieldClass} />
       </label>
 
-      <label className="block">
-        <span className="text-sm font-medium">Type</span>
-        <select name="type" defaultValue={filters.type} onChange={submit} className={inputClass}>
-          <option value="">All types</option>
+      <fieldset>
+        <legend className={labelClass}>Type</legend>
+        <div className="mt-1 space-y-1">
+          <TypeRadio value="" label="All types" checked={!filters.type} />
           {types.map((o) => (
-            <option key={o.value} value={o.value}>
-              {withCount(o)}
-            </option>
+            <TypeRadio key={o.value} value={o.value} label={withCount(o)} checked={filters.type === o.value} />
           ))}
-        </select>
-      </label>
+        </div>
+      </fieldset>
 
       <label className="block">
-        <span className="text-sm font-medium">Management</span>
-        <select name="management" defaultValue={filters.management} onChange={submit} className={inputClass}>
+        <span className={labelClass}>Management</span>
+        <select name="management" defaultValue={filters.management} onChange={submit} className={fieldClass}>
           <option value="">Any</option>
           {management.map((o) => (
             <option key={o.value} value={o.value}>
@@ -106,14 +113,28 @@ export function SearchForm({ filters, countries, states, types, management }: Pr
         </select>
       </label>
 
-      <div className="flex items-end gap-3">
-        <button type="submit" className="rounded-md bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-700">
-          Search
-        </button>
-        <Link href="/" className="py-2 text-sm text-zinc-600 underline dark:text-zinc-400">
-          Clear filters
-        </Link>
-      </div>
+      <button
+        type="submit"
+        className="w-full rounded-lg bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-2.5 font-semibold text-white shadow-sm transition hover:from-cyan-600 hover:to-teal-600"
+      >
+        Search
+      </button>
     </Form>
+  );
+}
+
+function TypeRadio({ value, label, checked }: { value: string; label: string; checked: boolean }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm text-sky-900 hover:bg-cyan-50 has-[:checked]:bg-cyan-50 has-[:checked]:font-medium has-[:checked]:text-teal-800">
+      <input
+        type="radio"
+        name="type"
+        value={value}
+        defaultChecked={checked}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        className="accent-teal-600"
+      />
+      {label}
+    </label>
   );
 }

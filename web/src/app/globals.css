@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
+/*
+ * Light blue + turquoise theme.
+ * The site is light-only, so `dark:` classes apply only inside an element with
+ * class "dark" (never used); OS dark mode does not change the brand colours.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f0f9ff; /* sky-50: light blue page */
+  --foreground: #0f2b3d; /* deep blue-slate text */
 }
 
 @theme inline {
@@ -12,15 +19,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Thin turquoise scrollbars for the scrolling panels. */
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #67e8f9 transparent;
 }
