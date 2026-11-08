@@ -82,10 +82,25 @@ function management(control: string, subcontrol: string): string | null {
   return null;
 }
 
+/** File list from the portal's CKAN API; retries temporary failures (the portal is sometimes busy). */
 async function listStateFiles(): Promise<{ urls: string[]; modified: string | null }> {
-  const res = await fetch(CKAN, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(60_000), cache: 'no-store' });
-  if (!res.ok) throw new Error(`datos.gob.mx API: HTTP ${res.status}`);
-  const body = (await res.json()) as { result: { metadata_modified?: string; resources: { url: string }[] } };
+  let lastError = 'unknown error';
+  let body: { result: { metadata_modified?: string; resources: { url: string }[] } } | null = null;
+  for (let attempt = 0; attempt < 4 && !body; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 3000 * 2 ** (attempt - 1))); // 3s, 6s, 12s
+    try {
+      const res = await fetch(CKAN, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(60_000), cache: 'no-store' });
+      if (res.ok) body = await res.json();
+      else lastError = `HTTP ${res.status}`;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  if (!body) {
+    throw new Error(
+      `datos.gob.mx is not responding (${lastError}) after 4 attempts. The Mexican data portal is temporarily unavailable; existing Mexico data is unchanged. Try again later.`,
+    );
+  }
   const urls = body.result.resources.map((r) => r.url).filter((u) => /catalogo_centro_trabajo_\d\d_csv\.csv$/i.test(u));
   return { urls, modified: body.result.metadata_modified ?? null };
 }
