@@ -66,18 +66,22 @@ export async function ensureSubdivisions(
   });
 }
 
-/** Writes institutions per type with the paged diff (same pattern for every country). */
+/**
+ * Writes a country's institutions with the paged diff. The comparison covers
+ * all of the country's rows (not one type), so an institution that changes
+ * from college to university is updated rather than skipped. Universities go
+ * first so colleges can reference them.
+ */
 export async function writeInstitutions(ctx: SyncContext, countryIso2: string, rows: Row[]): Promise<void> {
-  for (const type of ['higher_ed_university', 'higher_ed_college']) {
-    await syncRows(ctx, {
-      schema: 'edu',
-      table: 'schools',
-      keyColumns: ['id'],
-      tracksVerification: true,
-      scope: { country_iso2: countryIso2, school_type_code: type },
-      rows: uniform(rows.filter((r) => r.school_type_code === type)),
-    });
-  }
+  const rank = (r: Row) => (r.school_type_code === 'higher_ed_university' ? 0 : 1);
+  await syncRows(ctx, {
+    schema: 'edu',
+    table: 'schools',
+    keyColumns: ['id'],
+    tracksVerification: true,
+    scope: { country_iso2: countryIso2 },
+    rows: uniform([...rows].sort((a, b) => rank(a) - rank(b))),
+  });
 }
 
 /** Runs async jobs with limited parallelism, preserving input order in the results. */

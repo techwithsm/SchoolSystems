@@ -35,6 +35,48 @@ export interface WikidataCountryConfig {
   collegeClasses: string[];
   /** ISO 3166-2 code -> [name, type]; ensured in core.subdivisions. */
   subdivisions: Record<string, [name: string, type: string]>;
+  /** Items of a college class whose name matches this are counted as universities. */
+  universityNamePattern?: RegExp;
+  /**
+   * For countries not in the seed: created in core.countries (inactive) and,
+   * if needed, its UN M49 region in core.regions. Existing rows are left as they are.
+   */
+  country?: {
+    iso3: string;
+    isoNumeric: string;
+    name: string;
+    continentCode: string;
+    region: { m49: string; name: string };
+  };
+}
+
+/** Inserts the country (and its region) if missing; never changes an existing row. */
+async function ensureCountry(ctx: SyncContext, cfg: WikidataCountryConfig): Promise<void> {
+  const c = cfg.country;
+  if (!c) return;
+  const { data, error } = await ctx.db.schema('core').from('countries').select('iso2').eq('iso2', cfg.iso2).maybeSingle();
+  if (error) throw new Error(`core.countries: read failed: ${error.message}`);
+  if (data) return;
+  if (ctx.dryRun) {
+    ctx.count('core.countries', 'inserted');
+    return;
+  }
+  const region = await ctx.db
+    .schema('core')
+    .from('regions')
+    .upsert({ m49_code: c.region.m49, name: c.region.name, continent_code: c.continentCode }, { onConflict: 'm49_code', ignoreDuplicates: true });
+  if (region.error) throw new Error(`core.regions: insert failed: ${region.error.message}`);
+  const country = await ctx.db.schema('core').from('countries').insert({
+    iso2: cfg.iso2,
+    iso3: c.iso3,
+    iso_numeric: c.isoNumeric,
+    name: c.name,
+    continent_code: c.continentCode,
+    region_m49_code: c.region.m49,
+    is_active: false,
+  });
+  if (country.error) throw new Error(`core.countries: insert failed: ${country.error.message}`);
+  ctx.count('core.countries', 'inserted');
 }
 
 const ENDPOINT = 'https://query.wikidata.org/sparql';
@@ -117,6 +159,7 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
     description: cfg.description,
 
     async run(ctx: SyncContext) {
+      await ensureCountry(ctx, cfg);
       await ensureSubdivisions(ctx, cfg.iso2, cfg.subdivisions);
 
       // 1. Which items are universities / colleges (universities win).
@@ -186,7 +229,7 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
           subdivision_code: state,
           city: r.place && r.place !== stateName ? r.place : null,
           name,
-          school_type_code: kind.get(id),
+          school_type_code: cfg.universityNamePattern?.test(name) ? 'higher_ed_university' : kind.get(id),
           local_type: r.type,
           year_established: cleanYear(r.founded),
           website: cleanUrl(r.website),
@@ -211,6 +254,73 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
     },
   };
 }
+
+// -----------------------------------------------------------------------------
+// Nigeria
+// -----------------------------------------------------------------------------
+
+export const nigeriaWikidataSource = createWikidataHigherEdSource({
+  key: 'ng_wikidata',
+  label: 'Nigeria: colleges & universities (Wikidata)',
+  description:
+    'Nigerian universities (federal, state, private), polytechnics, colleges of education and other colleges from Wikidata (CC0): state, city, year founded, website, map location. Takes about a minute.',
+  iso2: 'NG',
+  countryQid: 'Q1033',
+  languages: ['en'],
+  universityClasses: ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054'],
+  collegeClasses: ['Q189004', 'Q845392', 'Q2120173', 'Q1371037', 'Q38723'],
+  universityNamePattern: /\buniversity\b/i,
+  subdivisions: {
+    'NG-AB': ['Abia', 'state'], 'NG-AD': ['Adamawa', 'state'], 'NG-AK': ['Akwa Ibom', 'state'],
+    'NG-AN': ['Anambra', 'state'], 'NG-BA': ['Bauchi', 'state'], 'NG-BY': ['Bayelsa', 'state'],
+    'NG-BE': ['Benue', 'state'], 'NG-BO': ['Borno', 'state'], 'NG-CR': ['Cross River', 'state'],
+    'NG-DE': ['Delta', 'state'], 'NG-EB': ['Ebonyi', 'state'], 'NG-ED': ['Edo', 'state'],
+    'NG-EK': ['Ekiti', 'state'], 'NG-EN': ['Enugu', 'state'], 'NG-FC': ['Federal Capital Territory', 'capital_territory'],
+    'NG-GO': ['Gombe', 'state'], 'NG-IM': ['Imo', 'state'], 'NG-JI': ['Jigawa', 'state'],
+    'NG-KD': ['Kaduna', 'state'], 'NG-KN': ['Kano', 'state'], 'NG-KT': ['Katsina', 'state'],
+    'NG-KE': ['Kebbi', 'state'], 'NG-KO': ['Kogi', 'state'], 'NG-KW': ['Kwara', 'state'],
+    'NG-LA': ['Lagos', 'state'], 'NG-NA': ['Nasarawa', 'state'], 'NG-NI': ['Niger', 'state'],
+    'NG-OG': ['Ogun', 'state'], 'NG-ON': ['Ondo', 'state'], 'NG-OS': ['Osun', 'state'],
+    'NG-OY': ['Oyo', 'state'], 'NG-PL': ['Plateau', 'state'], 'NG-RI': ['Rivers', 'state'],
+    'NG-SO': ['Sokoto', 'state'], 'NG-TA': ['Taraba', 'state'], 'NG-YO': ['Yobe', 'state'],
+    'NG-ZA': ['Zamfara', 'state'],
+  },
+});
+
+// -----------------------------------------------------------------------------
+// Egypt (not in the 20 pilot countries: the source adds it, inactive)
+// -----------------------------------------------------------------------------
+
+export const egyptWikidataSource = createWikidataHigherEdSource({
+  key: 'eg_wikidata',
+  label: 'Egypt: colleges & universities (Wikidata)',
+  description:
+    'Egyptian public and private universities, academies and higher institutes from Wikidata (CC0): governorate, city, year founded, website, map location. Adds Egypt to the country list (hidden until activated).',
+  iso2: 'EG',
+  countryQid: 'Q79',
+  languages: ['en', 'ar'],
+  universityClasses: ['Q3918', 'Q875538', 'Q902104', 'Q15936437', 'Q23002054'],
+  collegeClasses: ['Q189004', 'Q38723', 'Q162633', 'Q2120173', 'Q1371037'],
+  universityNamePattern: /\buniversity\b|جامعة/i,
+  country: {
+    iso3: 'EGY',
+    isoNumeric: '818',
+    name: 'Egypt',
+    continentCode: 'AF',
+    region: { m49: '015', name: 'Northern Africa' },
+  },
+  subdivisions: {
+    'EG-ALX': ['Alexandria', 'governorate'], 'EG-ASN': ['Aswan', 'governorate'], 'EG-AST': ['Asyut', 'governorate'],
+    'EG-BA': ['Red Sea', 'governorate'], 'EG-BH': ['Beheira', 'governorate'], 'EG-BNS': ['Beni Suef', 'governorate'],
+    'EG-C': ['Cairo', 'governorate'], 'EG-DK': ['Dakahlia', 'governorate'], 'EG-DT': ['Damietta', 'governorate'],
+    'EG-FYM': ['Faiyum', 'governorate'], 'EG-GH': ['Gharbia', 'governorate'], 'EG-GZ': ['Giza', 'governorate'],
+    'EG-IS': ['Ismailia', 'governorate'], 'EG-JS': ['South Sinai', 'governorate'], 'EG-KB': ['Qalyubia', 'governorate'],
+    'EG-KFS': ['Kafr el-Sheikh', 'governorate'], 'EG-KN': ['Qena', 'governorate'], 'EG-LX': ['Luxor', 'governorate'],
+    'EG-MN': ['Minya', 'governorate'], 'EG-MNF': ['Monufia', 'governorate'], 'EG-MT': ['Matrouh', 'governorate'],
+    'EG-PTS': ['Port Said', 'governorate'], 'EG-SHG': ['Sohag', 'governorate'], 'EG-SHR': ['Sharqia', 'governorate'],
+    'EG-SIN': ['North Sinai', 'governorate'], 'EG-SUZ': ['Suez', 'governorate'], 'EG-WAD': ['New Valley', 'governorate'],
+  },
+});
 
 // -----------------------------------------------------------------------------
 // Canada

@@ -12,6 +12,7 @@ The admin page (`/admin`) runs these sources in order:
 | United States: colleges & universities (IPEDS) | NCES IPEDS directory file (HD, downloaded automatically, public domain) | `edu.schools`: about 4,000 active degree-granting institutions with address, phone, website and location; `core.subdivisions`: US states and territories |
 | Canada: colleges & universities (Wikidata) | Wikidata SPARQL (CC0) | `edu.schools`: Canadian universities, colleges, CEGEPs; `core.subdivisions`: provinces and territories |
 | Mexico: colleges & universities (SEP) | SEP Catálogo de centros de trabajo, 32 state CSVs on datos.gob.mx (CC BY 4.0) | `edu.schools`: active universities, technological institutes and teacher-training colleges, with address and location; `core.subdivisions`: states. Contact-person columns are never read |
+| Nigeria / Egypt: colleges & universities (Wikidata) | Wikidata SPARQL (CC0) | `edu.schools`: Nigerian universities, polytechnics, colleges of education; Egyptian universities and institutes. Adds Egypt to `core.countries` (inactive) and the states/governorates to `core.subdivisions` |
 | India: colleges & universities (AISHE) | `india/aishe/*.xlsx` or `*.csv` | `edu.schools`: every Indian college, university and standalone institution (see [india/aishe/README.md](india/aishe/README.md)) |
 
 Rules every source follows:
