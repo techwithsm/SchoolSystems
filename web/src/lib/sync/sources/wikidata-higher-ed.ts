@@ -92,6 +92,29 @@ async function ensureCountry(ctx: SyncContext, cfg: WikidataCountryConfig): Prom
   ctx.count('core.countries', 'inserted');
 }
 
+
+/** Category label shown for each Wikidata class we match (Title Case). */
+const CLASS_LABELS: Record<string, string> = {
+  Q3918: 'University',
+  Q875538: 'Public University',
+  Q902104: 'Private University',
+  Q15936437: 'Research University',
+  Q23002054: 'Private Not-for-Profit University',
+  Q3520135: 'Deemed University',
+  Q47531586: 'Institute of National Importance',
+  Q189004: 'College',
+  Q1663017: 'Engineering College',
+  Q494230: 'Medical College',
+  Q845392: 'Polytechnic',
+  Q2120173: 'College of Education',
+  Q1371037: 'Institute of Technology',
+  Q38723: 'Higher Education Institution',
+  Q162633: 'Academy',
+  Q1336920: 'Community College',
+  Q1110056: 'CEGEP',
+  Q108415947: 'College of Applied Arts and Technology',
+};
+
 const ENDPOINT = 'https://query.wikidata.org/sparql';
 const USER_AGENT = 'SchoolSystemsDirectory-Sync/1.0 (education directory; Supabase sync)';
 const BATCH = 150;
@@ -141,7 +164,7 @@ function detailsQuery(ids: string[], cfg: WikidataCountryConfig): string {
     .join('\n  ');
   return `
 SELECT ?i ${labelVars} (MIN(?iso) AS ?state) (MIN(?locLabel) AS ?place)
-       (MIN(?inc) AS ?founded) (MIN(?web) AS ?website) (MIN(?coord) AS ?coords) (MIN(?typeLabel) AS ?type)
+       (MIN(?inc) AS ?founded) (MIN(?web) AS ?website) (MIN(?coord) AS ?coords)
        (MIN(?ph) AS ?phone) (MIN(?em) AS ?email) (MIN(?addr) AS ?address) (MIN(?pc) AS ?postal)
 WHERE {
   VALUES ?i { ${ids.map((q) => `wd:${q}`).join(' ')} }
@@ -151,7 +174,6 @@ WHERE {
   OPTIONAL { ?i wdt:P571 ?inc }
   OPTIONAL { ?i wdt:P856 ?web }
   OPTIONAL { ?i wdt:P625 ?coord }
-  OPTIONAL { ?i wdt:P31 ?t . ?t rdfs:label ?typeLabel FILTER(LANG(?typeLabel) = "${cfg.languages[0]}") }
   OPTIONAL { ?i wdt:P1329 ?ph }
   OPTIONAL { ?i wdt:P968 ?em }
   OPTIONAL { ?i wdt:P6375 ?addr }
@@ -187,12 +209,22 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
         sparql(
           `SELECT DISTINCT ?i WHERE { ?i wdt:P31 wd:${cls} ; wdt:P17 wd:${cfg.countryQid} . FILTER NOT EXISTS { ?i wdt:P576 [] } ${exclude} ${noSubunits} }`,
         );
+      // The class each item matched gives its category label (later sets win:
+      // university classes override college classes).
+      const category = new Map<string, string>();
       for (const [classes, type] of [
         [cfg.collegeClasses, 'higher_ed_college'],
         [cfg.universityClasses, 'higher_ed_university'],
       ] as const) {
         const lists = await mapLimit(classes, 2, listFor);
-        for (const rows of lists) for (const r of rows) if (qid(r.i)) kind.set(qid(r.i)!, type);
+        lists.forEach((rows, n) => {
+          for (const r of rows) {
+            const id = qid(r.i);
+            if (!id) continue;
+            kind.set(id, type);
+            category.set(id, CLASS_LABELS[classes[n]] ?? (type === 'higher_ed_university' ? 'University' : 'College'));
+          }
+        });
       }
       if (kind.size === 0) throw new Error('Wikidata returned no institutions (service busy?). Try again later.');
 
@@ -285,14 +317,16 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
         }
         const stateName = state ? cfg.subdivisions[state][0] : null;
         const { lat, lon } = parsePoint(r.coords);
+        // A college-class item whose name says it is a university is counted as one.
+        const promoted = kind.get(id) === 'higher_ed_college' && !!cfg.universityNamePattern?.test(name);
         rows.push({
           id: stableId(`${cfg.iso2}/wikidata/${id}`), // same item -> same row, whichever variant
           country_iso2: cfg.iso2,
           subdivision_code: state,
           city: r.place && r.place !== stateName ? r.place : null,
           name,
-          school_type_code: cfg.universityNamePattern?.test(name) ? 'higher_ed_university' : kind.get(id),
-          local_type: r.type,
+          school_type_code: promoted ? 'higher_ed_university' : kind.get(id),
+          local_type: promoted ? 'University' : (category.get(id) ?? null),
           year_established: cleanYear(r.founded),
           website: cleanUrl(r.website),
           latitude: lat,
@@ -342,6 +376,8 @@ export const indiaWikidataExtraSource = createWikidataHigherEdSource({
   countryQid: 'Q668',
   languages: ['en'],
   variant: 'no_aishe',
+  // Vishwavidyalaya/Vidyapeeth = university (but Mahavidyalaya = college).
+  universityNamePattern: /university|vishwa ?vidyalaya|vishva ?vidyalaya|vidyapee?th|vidyapith/i,
   excludeProperty: 'P6392',
   skipExistingNames: true,
   universityClasses: [...UNIVERSITY_CLASSES, 'Q3520135', 'Q47531586'], // + deemed university, Institute of National Importance

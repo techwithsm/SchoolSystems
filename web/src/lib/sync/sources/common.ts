@@ -1,3 +1,4 @@
+import { standardizeAll } from '../cleanse';
 import { syncRows } from '../upsert';
 import type { Row, SyncContext } from '../types';
 
@@ -73,15 +74,38 @@ export async function ensureSubdivisions(
  * first so colleges can reference them.
  */
 export async function writeInstitutions(ctx: SyncContext, countryIso2: string, rows: Row[]): Promise<void> {
+  await writeInstitutionRows(ctx, rows, { country_iso2: countryIso2 });
+}
+
+/**
+ * The single write path for institutions (every country and source):
+ *  1. standardize (names, Title Case labels, phone format, URL syntax) and
+ *     drop rows without a usable name;
+ *  2. write everything except the phone;
+ *  3. write phones only where the source HAS one (phone_source = 'source'),
+ *     so a source without phones never blanks out a number that the website
+ *     checker found on the institution's own site.
+ * `scope` must cover all rows (used for the paged diff).
+ */
+export async function writeInstitutionRows(ctx: SyncContext, rows: Row[], scope: Record<string, string>): Promise<void> {
+  const { rows: clean, dropped } = standardizeAll(rows);
+  if (dropped) ctx.warn(`${dropped} records skipped: no usable name (e.g. only digits or punctuation).`);
+
   const rank = (r: Row) => (r.school_type_code === 'higher_ed_university' ? 0 : 1);
+  const withoutPhone = clean.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'phone' && k !== 'phone_source')));
   await syncRows(ctx, {
     schema: 'edu',
     table: 'schools',
     keyColumns: ['id'],
     tracksVerification: true,
-    scope: { country_iso2: countryIso2 },
-    rows: uniform([...rows].sort((a, b) => rank(a) - rank(b))),
+    scope,
+    rows: uniform(withoutPhone.sort((a, b) => rank(a) - rank(b))),
   });
+
+  const phones = clean.filter((r) => r.phone).map((r) => ({ id: r.id, phone: r.phone, phone_source: 'source' }));
+  if (phones.length) {
+    await syncRows(ctx, { schema: 'edu', table: 'schools', keyColumns: ['id'], scope, rows: phones });
+  }
 }
 
 /** Runs async jobs with limited parallelism, preserving input order in the results. */

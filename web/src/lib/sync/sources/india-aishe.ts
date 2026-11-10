@@ -2,7 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { upsertSources } from '../citations';
 import { pick, readTableFile } from '../table-file';
-import { syncRows } from '../upsert';
+import { writeInstitutionRows } from './common';
 import type { Row, SyncSource } from '../types';
 import {
   AISHE_FILE_SOURCE_ID,
@@ -216,23 +216,8 @@ export const indiaAisheSource: SyncSource = {
     const collegeRows = uniform([...colleges.values()]);
     await dropDuplicateCodes(ctx, [...uniRows, ...collegeRows]);
 
-    // Universities first (colleges reference them).
-    await syncRows(ctx, {
-      schema: 'edu',
-      table: 'schools',
-      keyColumns: ['id'],
-      tracksVerification: true,
-      scope: { country_iso2: 'IN', school_type_code: 'higher_ed_university' },
-      rows: uniRows,
-    });
-    await syncRows(ctx, {
-      schema: 'edu',
-      table: 'schools',
-      keyColumns: ['id'],
-      tracksVerification: true,
-      scope: { country_iso2: 'IN', school_type_code: 'higher_ed_college' },
-      rows: collegeRows,
-    });
+    // Shared write path: standardize, universities first, phones kept safe.
+    await writeInstitutionRows(ctx, [...uniRows, ...collegeRows], { country_iso2: 'IN' });
 
     ctx.warn(`Read ${colleges.size} colleges/standalone institutions and ${universities.size} universities from ${names.length} file(s).`);
     if (dupCodes) ctx.warn(`${dupCodes} duplicate AISHE codes in the files (last one kept).`);

@@ -1,6 +1,6 @@
 import { stableId } from '../ids';
 import { upsertSources } from '../citations';
-import { syncRows } from '../upsert';
+import { writeInstitutionRows } from './common';
 import type { Row, SyncContext, SyncSource } from '../types';
 import {
   AISHE_FILE_SOURCE_ID,
@@ -245,22 +245,8 @@ export const indiaWikidataSource: SyncSource = {
     const collegeRows = uniform([...colleges.values()].filter(keep));
     await dropDuplicateCodes(ctx, [...uniRows, ...collegeRows]);
 
-    await syncRows(ctx, {
-      schema: 'edu',
-      table: 'schools',
-      keyColumns: ['id'],
-      tracksVerification: true,
-      scope: { country_iso2: 'IN', school_type_code: 'higher_ed_university' },
-      rows: uniRows,
-    });
-    await syncRows(ctx, {
-      schema: 'edu',
-      table: 'schools',
-      keyColumns: ['id'],
-      tracksVerification: true,
-      scope: { country_iso2: 'IN', school_type_code: 'higher_ed_college' },
-      rows: collegeRows,
-    });
+    // Shared write path: standardize, universities first, phones kept safe.
+    await writeInstitutionRows(ctx, [...uniRows, ...collegeRows], { country_iso2: 'IN' });
 
     ctx.warn(
       `Wikidata returned ${rows.length} records: ${colleges.size} colleges/standalone, ${universities.size} universities` +

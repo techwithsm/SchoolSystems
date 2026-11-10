@@ -10,6 +10,7 @@ import {
   mexicoWikidataExtraSource,
   nigeriaWikidataSource,
 } from './sources/wikidata-higher-ed';
+import { standardizeRecordsSource, websiteCheckSource } from './sources/data-quality';
 import { localCsvSource } from './sources/local-csv';
 import { unescoUisSource } from './sources/unesco-uis';
 import { worldBankSource } from './sources/world-bank';
@@ -34,6 +35,9 @@ export const SYNC_SOURCES: SyncSource[] = [
   mexicoWikidataExtraSource, // after SEP, so it can skip its names
   nigeriaWikidataSource,
   egyptWikidataSource,
+  // Data quality jobs: run after the data sources.
+  standardizeRecordsSource,
+  websiteCheckSource,
 ];
 
 export function getSources(keys?: string[]): SyncSource[] {
