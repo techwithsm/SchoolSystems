@@ -122,6 +122,7 @@ async function downloadText(url: string): Promise<string> {
 
 export const mexicoSepSource: SyncSource = {
   key: 'mx_sep',
+  writesInstitutions: true,
   label: 'Mexico: colleges & universities (SEP)',
   description:
     'Official SEP register of education centres (datos.gob.mx, CC BY 4.0): every active university, technological institute and teacher-training college, with address, municipality, postcode, map location and public/private status. Downloads 32 state files (~2 minutes).',

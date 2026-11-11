@@ -13,6 +13,16 @@ export interface RunSyncOptions {
   triggeredBy: string | null;
   /** Preview only: compute and report changes without writing data. */
   dryRun?: boolean;
+  /** Epoch ms by which everything must finish (e.g. the page's time limit). */
+  deadlineMs?: number;
+}
+
+/** Key of the website check that follows every sync that loads institutions. */
+export const WEBSITE_CHECK_KEY = 'dq_websites';
+
+/** True when the website check should run after these sources. */
+export function needsWebsiteCheck(sources: { key: string; writesInstitutions?: boolean }[], dryRun: boolean): boolean {
+  return !dryRun && sources.some((s) => s.writesInstitutions) && !sources.some((s) => s.key === WEBSITE_CHECK_KEY);
 }
 
 /** Fresh SourceResult + SyncContext pair for one source (also used by tests). */
@@ -20,6 +30,7 @@ export function createSourceRun(
   source: { key: string; label: string },
   db: SyncContext['db'],
   dryRun = false,
+  deadline: number | null = null,
 ): { result: SourceResult; ctx: SyncContext } {
   const result: SourceResult = {
     key: source.key,
@@ -30,13 +41,14 @@ export function createSourceRun(
     conflicts: [],
     warnings: [],
   };
-  return { result, ctx: makeContext(result, db, dryRun) };
+  return { result, ctx: makeContext(result, db, dryRun, deadline) };
 }
 
-function makeContext(result: SourceResult, db: SyncContext['db'], dryRun: boolean): SyncContext {
+function makeContext(result: SourceResult, db: SyncContext['db'], dryRun: boolean, deadline: number | null): SyncContext {
   return {
     db,
     dryRun,
+    deadline,
     today: new Date().toISOString().slice(0, 10),
     count(table, kind, n = 1) {
       const t: TableStats = (result.tables[table] ??= { inserted: 0, updated: 0, unchanged: 0, deleted: 0 });
@@ -56,7 +68,7 @@ function makeContext(result: SourceResult, db: SyncContext['db'], dryRun: boolea
  * core.sync_runs. A failing source is reported but does not stop the others.
  * Caller MUST have verified the user is an admin.
  */
-export async function runSync({ sourceKeys, triggeredBy, dryRun = false }: RunSyncOptions): Promise<SyncRunSummary> {
+export async function runSync({ sourceKeys, triggeredBy, dryRun = false, deadlineMs }: RunSyncOptions): Promise<SyncRunSummary> {
   const db = createServiceClient();
   const sources = getSources(sourceKeys);
   const startedAt = new Date().toISOString();
@@ -98,8 +110,8 @@ export async function runSync({ sourceKeys, triggeredBy, dryRun = false }: RunSy
   }
 
   const results: SourceResult[] = [];
-  for (const source of sources) {
-    const { result, ctx } = createSourceRun(source, db, dryRun);
+  const runOne = async (source: (typeof sources)[number], label = source.label) => {
+    const { result, ctx } = createSourceRun({ key: source.key, label }, db, dryRun, deadlineMs ?? null);
     const t0 = Date.now();
     try {
       await source.run(ctx);
@@ -110,6 +122,15 @@ export async function runSync({ sourceKeys, triggeredBy, dryRun = false }: RunSy
     }
     result.durationMs = Date.now() - t0;
     results.push(result);
+  };
+
+  for (const source of sources) await runOne(source);
+
+  // Website check is part of every sync that loads institutions: it uses the
+  // time left (new and changed addresses are checked first).
+  if (needsWebsiteCheck(sources, dryRun)) {
+    const [check] = getSources([WEBSITE_CHECK_KEY]);
+    await runOne(check, `${check.label} (automatic)`);
   }
 
   const failed = results.filter((r) => r.status === 'failed').length;

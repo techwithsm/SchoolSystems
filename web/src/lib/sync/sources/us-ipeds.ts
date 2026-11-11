@@ -106,6 +106,7 @@ async function downloadLatest(ctx: SyncContext): Promise<{ year: number; csv: st
 
 export const usIpedsSource: SyncSource = {
   key: 'us_ipeds',
+  writesInstitutions: true,
   label: 'United States: colleges & universities (IPEDS)',
   description:
     'About 4,000 active degree-granting U.S. colleges and universities from the Department of Education (NCES IPEDS, public domain): address, county, phone, website, map location, public/private and sector. Downloads automatically.',

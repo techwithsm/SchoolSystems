@@ -30,8 +30,11 @@ export async function runSyncAction(_prev: SyncActionState, formData: FormData):
   // The "Preview changes" button submits mode=preview.
   const dryRun = formData.get('mode') === 'preview';
 
+  // The admin page may run for 300s (maxDuration); keep 30s to save results.
+  const deadlineMs = Date.now() + 270_000;
+
   try {
-    const summary = await runSync({ sourceKeys: keys, triggeredBy: admin.userId, dryRun });
+    const summary = await runSync({ sourceKeys: keys, triggeredBy: admin.userId, dryRun, deadlineMs });
     if (!dryRun) updateTag(DIRECTORY_CACHE_TAG); // public search filters show the new data
     refresh(); // re-render the page so "Recent runs" shows this run
     return { summary, error: summary.runId ? null : (summary.error ?? 'Sync could not start.') };

@@ -30,7 +30,16 @@ The same sync from the command line (maintainers only; uses `.env.local`):
 npm run sync                     # preview all sources
 npm run sync -- world_bank       # preview one source
 npm run sync -- --apply          # write
+npm run sync -- --apply mx_sep --no-website-check   # skip the automatic website check
 ```
+
+### Website check runs automatically
+
+Every sync that loads institutions is followed by **Data quality: check websites & find phone numbers**. New and changed addresses are checked first.
+- **Admin page:** the check uses the time left in the run (about 5 minutes in total).
+- **Command line:** the check runs for up to 4 hours (`WEBSITE_CHECK_SECONDS`, default 14400). Press Ctrl+C to stop; it continues where it left off next time.
+
+Public profiles show a website only after it has passed the check.
 
 ## Code map
 

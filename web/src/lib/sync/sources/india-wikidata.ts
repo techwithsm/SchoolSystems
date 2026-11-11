@@ -118,6 +118,7 @@ const stripDistrict = (s: string | null) => s?.replace(/\s+district$/i, '').trim
 
 export const indiaWikidataSource: SyncSource = {
   key: 'india_wikidata',
+  writesInstitutions: true,
   label: 'India: colleges & universities (Wikidata)',
   description:
     'About 24,000 Indian colleges, universities and standalone institutions that have an official AISHE code in Wikidata (CC0): state, district, city, year founded, website, map location, affiliation. Takes 2–4 minutes.',

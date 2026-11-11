@@ -12,6 +12,7 @@ const STANDARD_COLUMNS = ['id', 'country_iso2', 'school_type_code', 'name', 'loc
 
 export const standardizeRecordsSource: SyncSource = {
   key: 'dq_standardize',
+  writesInstitutions: true, // may change website addresses, which then need a check
   label: 'Data quality: standardize existing records',
   description:
     'Cleans what is already loaded, without downloading anything: Title Case categories, tidy names (no stray punctuation, no ALL CAPS), phone numbers validated and written with the country code, website addresses checked for valid syntax.',
@@ -223,7 +224,12 @@ export const websiteCheckSource: SyncSource = {
 
   async run(ctx: SyncContext) {
     const started = Date.now();
-    const budget = timeBudgetMs();
+    // Own budget (WEBSITE_CHECK_SECONDS), but never past the run's deadline.
+    const budget = Math.min(timeBudgetMs(), ctx.deadline ? ctx.deadline - started - 15_000 : Infinity);
+    if (budget < 20_000) {
+      ctx.warn('Not enough time left in this run to check websites. They are checked on the next sync (new and changed addresses first).');
+      return;
+    }
     const staleBefore = new Date(Date.now() - RECHECK_DAYS * 86_400_000).toISOString();
     const tally = { checked: 0, ok: 0, restricted: 0, broken: 0, mismatch: 0, discovered: 0, none: 0, phones: 0 };
 

@@ -42,6 +42,8 @@ export interface SyncContext {
   today: string;
   /** Preview mode: read and diff as normal, count what WOULD change, write nothing. */
   dryRun: boolean;
+  /** Epoch ms by which the source should stop (page/request time limit), or null = no limit. */
+  deadline: number | null;
   /** Record inserted/updated/unchanged counts. */
   count(table: string, kind: keyof TableStats, n?: number): void;
   conflict(c: SyncConflict): void;
@@ -56,6 +58,8 @@ export interface SyncSource {
   key: string;
   label: string;
   description: string;
+  /** True for sources that write institutions: the website check then follows automatically. */
+  writesInstitutions?: boolean;
   run(ctx: SyncContext): Promise<void>;
 }
 

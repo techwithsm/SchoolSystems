@@ -61,6 +61,7 @@ function mapLocality(text: string | null): string | null {
 
 export const indiaAisheSource: SyncSource = {
   key: 'india_aishe',
+  writesInstitutions: true,
   label: 'India: colleges & universities (AISHE)',
   description:
     'Official AISHE directory files in web/data/india/aishe/ (.xlsx or .csv): every college, university and standalone institution, with state, district, type, management and affiliation.',

@@ -190,6 +190,7 @@ function parsePoint(p: string | null) {
 export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSource {
   return {
     key: cfg.key,
+    writesInstitutions: true,
     label: cfg.label,
     description: cfg.description,
 
