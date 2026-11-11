@@ -5,6 +5,17 @@ import { cacheLife, cacheTag } from 'next/cache';
 /** Cache tag for directory filter data; cleared after an admin sync. */
 export const DIRECTORY_CACHE_TAG = 'directory';
 import { createPublicClient } from '@/lib/supabase/public';
+import { titleCase } from '@/lib/text';
+
+/** Every label shown to visitors is Title Case, whatever the source wrote. */
+function withTitleCaseLabels<T extends { school_type_label?: string | null; management_label?: string | null; local_type?: string | null }>(row: T): T {
+  return {
+    ...row,
+    ...('school_type_label' in row ? { school_type_label: titleCase(row.school_type_label) } : {}),
+    ...('management_label' in row ? { management_label: titleCase(row.management_label) } : {}),
+    ...('local_type' in row ? { local_type: titleCase(row.local_type) } : {}),
+  };
+}
 
 // -----------------------------------------------------------------------------
 // Filters (from the URL, so searches are shareable and work without JavaScript)
@@ -108,7 +119,7 @@ export async function getFacets(): Promise<FacetRow[]> {
       .select('*')
       .range(from, from + 999);
     if (error) throw new Error(`Could not load filters: ${error.message}`);
-    rows.push(...((data ?? []) as FacetRow[]));
+    rows.push(...((data ?? []) as FacetRow[]).map((r) => ({ ...r, school_type_label: titleCase(r.school_type_label) ?? r.school_type_label })));
     if (!data || data.length < 1000) break;
   }
   return rows;
@@ -123,7 +134,7 @@ export async function getManagementOptions(): Promise<Option[]> {
     .select('code, label')
     .order('sort_order');
   if (error) throw new Error(`Could not load management types: ${error.message}`);
-  return (data ?? []).map((m) => ({ value: m.code, label: m.label }));
+  return (data ?? []).map((m) => ({ value: m.code, label: titleCase(m.label) ?? m.label }));
 }
 
 function sumBy(rows: FacetRow[], key: (r: FacetRow) => string | null, label: (r: FacetRow) => string): Option[] {
@@ -206,7 +217,7 @@ export async function searchInstitutions(f: Filters): Promise<{ rows: Institutio
 
   // Asking for a page past the end returns an error from PostgREST; treat as empty.
   if (error && error.code !== 'PGRST103') throw new Error(`Search failed: ${error.message}`);
-  return { rows: (data ?? []) as unknown as InstitutionRow[], total: count ?? 0 };
+  return { rows: ((data ?? []) as unknown as InstitutionRow[]).map(withTitleCaseLabels), total: count ?? 0 };
 }
 
 // -----------------------------------------------------------------------------
@@ -261,7 +272,7 @@ export const getInstitution = cache(async (id: string): Promise<InstitutionDetai
   ]);
 
   return {
-    ...(row as unknown as InstitutionDetail),
+    ...withTitleCaseLabels(row as unknown as InstitutionDetail),
     source: (sourceRes.data as InstitutionDetail['source']) ?? null,
     affiliatedColleges: (collegesRes.data ?? []) as InstitutionDetail['affiliatedColleges'],
     affiliatedCount: collegesRes.count ?? 0,

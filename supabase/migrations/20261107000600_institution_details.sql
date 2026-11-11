@@ -58,6 +58,13 @@ insert into core.data_licenses (code, label, url) values
   ('ogl_in', 'Government Open Data License - India', 'https://data.gov.in/government-open-data-license-india')
 on conflict do nothing;
 
+-- On a fresh database migrations run before seed.sql, so make sure India
+-- (and its continent/region) exist first. No-op when the seed already ran.
+insert into core.continents (code, name, sort_order) values ('AS', 'Asia', 2) on conflict do nothing;
+insert into core.regions (m49_code, name, continent_code) values ('034', 'Southern Asia', 'AS') on conflict do nothing;
+insert into core.countries (iso2, iso3, iso_numeric, name, continent_code, region_m49_code)
+values ('IN', 'IND', '356', 'India', 'AS', '034') on conflict do nothing;
+
 -- ISO 3166-2:IN (codes as updated 2023-11-23: IN-CG, IN-OD, IN-TS, IN-UK).
 insert into core.subdivisions (code, country_iso2, name, type) values
   ('IN-AP', 'IN', 'Andhra Pradesh',    'state'),

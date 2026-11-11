@@ -108,7 +108,7 @@ async function Results({ filters }: { filters: Filters }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm text-sky-800">
-          <span className="text-lg font-semibold text-sky-950">{fmt.format(total)}</span> result{total === 1 ? '' : 's'}
+          <span className="text-lg font-semibold text-sky-950">{fmt.format(total)}</span> Result{total === 1 ? '' : 's'}
           {rows.length > 0 && (
             <span className="text-sky-600">
               {' '}

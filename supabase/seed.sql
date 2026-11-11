@@ -171,30 +171,30 @@ on conflict do nothing;
 
 -- Project taxonomy (application-builder-context.md, section 3).
 insert into edu.school_types (code, label, description, sort_order) values
-  ('public',               'Public / state school',              'Government-funded and run',                                      1),
-  ('public_autonomous',    'Publicly funded, independently run', 'e.g. Charter (US), Academy / Free school (UK)',                  2),
-  ('private',              'Private / independent',              'Fee-paying, privately run',                                      3),
-  ('religious',            'Faith-based',                        'Catholic, Islamic, Jewish, etc. (may be public or private)',     4),
-  ('international',        'International school',               'IB, Cambridge, American, British and other foreign curricula',   5),
-  ('boarding',             'Boarding school',                    'Residential',                                                    6),
-  ('vocational',           'Vocational / technical',             'TVET, apprenticeships, polytechnic secondary',                   7),
-  ('special_needs',        'Special education',                  'Disability and learning-support schools',                        8),
-  ('alternative',          'Alternative pedagogy',               'Montessori, Waldorf/Steiner, Reggio Emilia',                     9),
-  ('selective',            'Selective / gifted',                 'Grammar schools, exam-entry schools',                           10),
-  ('homeschool',           'Home education',                     'Legal status and regulation',                                   11),
-  ('online',               'Online / virtual school',            null,                                                            12),
-  ('early_childhood',      'Pre-primary / kindergarten',         null,                                                            13),
+  ('public',               'Public / State School',              'Government-funded and run',                                      1),
+  ('public_autonomous',    'Publicly Funded, Independently Run', 'e.g. Charter (US), Academy / Free school (UK)',                  2),
+  ('private',              'Private / Independent',              'Fee-paying, privately run',                                      3),
+  ('religious',            'Faith-Based',                        'Catholic, Islamic, Jewish, etc. (may be public or private)',     4),
+  ('international',        'International School',               'IB, Cambridge, American, British and other foreign curricula',   5),
+  ('boarding',             'Boarding School',                    'Residential',                                                    6),
+  ('vocational',           'Vocational / Technical',             'TVET, apprenticeships, polytechnic secondary',                   7),
+  ('special_needs',        'Special Education',                  'Disability and learning-support schools',                        8),
+  ('alternative',          'Alternative Pedagogy',               'Montessori, Waldorf/Steiner, Reggio Emilia',                     9),
+  ('selective',            'Selective / Gifted',                 'Grammar schools, exam-entry schools',                           10),
+  ('homeschool',           'Home Education',                     'Legal status and regulation',                                   11),
+  ('online',               'Online / Virtual School',            null,                                                            12),
+  ('early_childhood',      'Pre-Primary / Kindergarten',         null,                                                            13),
   ('higher_ed_university', 'University',                         null,                                                            14),
-  ('higher_ed_college',    'College / community college / polytechnic', null,                                                     15)
+  ('higher_ed_college',    'College / Community College / Polytechnic', null,                                                     15)
 on conflict do nothing;
 
 insert into edu.management_types (code, label, description, sort_order) values
   ('government',       'Government',        'Run by a public authority',                              1),
-  ('government_aided', 'Government-aided',  'Privately run, substantially publicly funded',           2),
+  ('government_aided', 'Government-Aided',  'Privately run, substantially publicly funded',           2),
   ('private',          'Private',           'Privately owned and run',                                3),
   ('community',        'Community',         'Run by a community or parents'' association',            4),
-  ('religious_body',   'Religious body',    'Run by a church, mosque, temple or religious order',     5),
-  ('ngo',              'NGO / non-profit',  'Run by a charity or non-governmental organisation',      6)
+  ('religious_body',   'Religious Body',    'Run by a church, mosque, temple or religious order',     5),
+  ('ngo',              'NGO / Non-Profit',  'Run by a charity or non-governmental organisation',      6)
 on conflict do nothing;
 
 insert into edu.funding_types (code, label, sort_order) values
