@@ -1,4 +1,5 @@
 import { chunk } from '../http';
+import { pickWebsite } from '../cleanse';
 import { stableId } from '../ids';
 import { upsertSources } from '../citations';
 import type { Row, SyncContext, SyncSource } from '../types';
@@ -7,7 +8,6 @@ import {
   cleanCoord,
   cleanEmail,
   cleanPhone,
-  cleanUrl,
   cleanYear,
   ensureSubdivisions,
   mapLimit,
@@ -164,7 +164,7 @@ function detailsQuery(ids: string[], cfg: WikidataCountryConfig): string {
     .join('\n  ');
   return `
 SELECT ?i ${labelVars} (MIN(?iso) AS ?state) (MIN(?locLabel) AS ?place)
-       (MIN(?inc) AS ?founded) (MIN(?web) AS ?website) (MIN(?coord) AS ?coords)
+       (MIN(?inc) AS ?founded) (GROUP_CONCAT(DISTINCT ?web; separator=" ") AS ?website) (MIN(?coord) AS ?coords)
        (MIN(?ph) AS ?phone) (MIN(?em) AS ?email) (MIN(?addr) AS ?address) (MIN(?pc) AS ?postal)
 WHERE {
   VALUES ?i { ${ids.map((q) => `wd:${q}`).join(' ')} }
@@ -172,7 +172,7 @@ WHERE {
   OPTIONAL { ?i wdt:P131 ?loc . ?loc rdfs:label ?locLabel FILTER(LANG(?locLabel) = "${cfg.languages[0]}") }
   OPTIONAL { ?i wdt:P131/wdt:P131* ?st . ?st wdt:P300 ?iso . FILTER(STRSTARTS(?iso, "${prefix}")) }
   OPTIONAL { ?i wdt:P571 ?inc }
-  OPTIONAL { ?i wdt:P856 ?web }
+  OPTIONAL { ?i p:P856 ?webSt . ?webSt ps:P856 ?web . FILTER NOT EXISTS { ?webSt pq:P582 [] } FILTER EXISTS { ?i wdt:P856 ?web } }
   OPTIONAL { ?i wdt:P625 ?coord }
   OPTIONAL { ?i wdt:P1329 ?ph }
   OPTIONAL { ?i wdt:P968 ?em }
@@ -328,7 +328,7 @@ export function createWikidataHigherEdSource(cfg: WikidataCountryConfig): SyncSo
           school_type_code: promoted ? 'higher_ed_university' : kind.get(id),
           local_type: promoted ? 'University' : (category.get(id) ?? null),
           year_established: cleanYear(r.founded),
-          website: cleanUrl(r.website),
+          website: pickWebsite(r.website),
           latitude: lat,
           longitude: lon,
           phone: cleanPhone(r.phone),

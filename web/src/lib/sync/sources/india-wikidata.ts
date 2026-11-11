@@ -1,4 +1,5 @@
 import { stableId } from '../ids';
+import { pickWebsite } from '../cleanse';
 import { upsertSources } from '../citations';
 import { writeInstitutionRows } from './common';
 import type { Row, SyncContext, SyncSource } from '../types';
@@ -6,7 +7,6 @@ import {
   AISHE_FILE_SOURCE_ID,
   cleanEmail,
   cleanPhone,
-  cleanUrl,
   cleanYear,
   collegeId,
   loadIndiaStates,
@@ -33,7 +33,7 @@ const CONCURRENCY = 3; // Wikidata allows a few parallel queries per client
  */
 const query = (suffix: string) => `
 SELECT ?code (MIN(?label) AS ?name) (MIN(?iso) AS ?state) (MIN(?distLabel) AS ?district)
-       (MIN(?locLabel) AS ?place) (MIN(?inc) AS ?founded) (MIN(?web) AS ?website) (MIN(?coord) AS ?coords)
+       (MIN(?locLabel) AS ?place) (MIN(?inc) AS ?founded) (GROUP_CONCAT(DISTINCT ?web; separator=" ") AS ?website) (MIN(?coord) AS ?coords)
        (MIN(?affCode) AS ?aff_code) (MIN(?affName) AS ?aff_name) (MIN(?typeLabel) AS ?type)
        (MIN(?ph) AS ?phone) (MIN(?em) AS ?email) (MIN(?addr) AS ?address) (MIN(?pc) AS ?postal)
 WHERE {
@@ -43,7 +43,7 @@ WHERE {
   OPTIONAL { ?i wdt:P131/wdt:P131* ?st . ?st wdt:P300 ?iso . FILTER(STRSTARTS(?iso, "IN-")) }
   OPTIONAL { ?i wdt:P131/wdt:P131* ?d . ?d wdt:P31 wd:Q1149652 . ?d rdfs:label ?distLabel FILTER(LANG(?distLabel) = "en") }
   OPTIONAL { ?i wdt:P571 ?inc }
-  OPTIONAL { ?i wdt:P856 ?web }
+  OPTIONAL { ?i p:P856 ?webSt . ?webSt ps:P856 ?web . FILTER NOT EXISTS { ?webSt pq:P582 [] } FILTER EXISTS { ?i wdt:P856 ?web } }
   OPTIONAL { ?i wdt:P625 ?coord }
   OPTIONAL { ?i wdt:P1416 ?aff . ?aff wdt:P6392 ?affCode . ?aff rdfs:label ?affName FILTER(LANG(?affName) = "en") }
   OPTIONAL { ?i wdt:P31 ?t . ?t rdfs:label ?typeLabel FILTER(LANG(?typeLabel) = "en") }
@@ -205,7 +205,7 @@ export const indiaWikidataSource: SyncSource = {
         city: place && place !== district ? place : null,
         name: r.name,
         year_established: cleanYear(r.founded),
-        website: cleanUrl(r.website),
+        website: pickWebsite(r.website),
         latitude: point?.latitude ?? null,
         longitude: point?.longitude ?? null,
         phone: cleanPhone(r.phone),

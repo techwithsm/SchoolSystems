@@ -82,6 +82,28 @@ export function cleanWebsite(raw: string | null | undefined): string | null {
   }
 }
 
+/**
+ * Picks the best of several website addresses (space-separated, as returned
+ * by a GROUP_CONCAT): https over http, academic domains (.ac.xx, .edu,
+ * .edu.xx) over others, homepages over sub-pages.
+ */
+export function pickWebsite(candidates: string | null | undefined): string | null {
+  const urls = (candidates ?? '')
+    .split(/\s+/)
+    .map(cleanWebsite)
+    .filter((u): u is string => !!u);
+  if (urls.length <= 1) return urls[0] ?? null;
+  const score = (u: string) => {
+    const url = new URL(u);
+    return (
+      (url.protocol === 'https:' ? 4 : 0) +
+      (/(\.ac\.[a-z]{2}|\.edu(\.[a-z]{2})?)$/i.test(url.hostname) ? 2 : 0) +
+      (url.pathname === '/' ? 1 : 0)
+    );
+  };
+  return [...new Set(urls)].sort((a, b) => score(b) - score(a) || a.length - b.length)[0];
+}
+
 const TYPE_FALLBACK: Record<string, string> = {
   higher_ed_university: 'University',
   higher_ed_college: 'College',

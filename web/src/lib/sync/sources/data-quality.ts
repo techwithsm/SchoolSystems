@@ -1,4 +1,5 @@
 import { cleanPhoneNumber, standardizeInstitution } from '../cleanse';
+import { candidateDomains, isSoftError, mentionsInstitution } from '../website-verify';
 import type { Row, SyncContext, SyncSource } from '../types';
 import { mapLimit } from './common';
 
@@ -176,48 +177,96 @@ function phoneFromHtml(html: string, countryIso2: string): string | null {
   return null;
 }
 
+type CheckRow = { id: string; name: string; website: string | null; phone: string | null; country_iso2: string };
+
+type Verdict = {
+  status: 'ok' | 'restricted' | 'broken' | 'mismatch' | null;
+  http: number | null;
+  url: string | null;
+  foundBy: 'source' | 'discovered' | null;
+  html: string | null;
+};
+
+/** Checks the address the source gave: it must load AND be this institution's page. */
+export async function verifySourceWebsite(row: CheckRow): Promise<Verdict> {
+  const r = await checkWebsite(row.website!);
+  if (r.status === 'restricted') return { status: 'restricted', http: r.http, url: r.workingUrl, foundBy: 'source', html: null };
+  if (r.status === 'broken') return { status: 'broken', http: r.http, url: null, foundBy: null, html: null };
+  if (r.html && isSoftError(r.html)) return { status: 'broken', http: r.http, url: null, foundBy: null, html: null };
+  if (r.html && !mentionsInstitution(row.name, r.html, false)) return { status: 'mismatch', http: r.http, url: null, foundBy: null, html: null };
+  return { status: 'ok', http: r.http, url: r.workingUrl, foundBy: 'source', html: r.html };
+}
+
+/** Tries the institution's acronym on its country's academic domains; strict name check. */
+export async function discoverWebsite(row: CheckRow): Promise<Verdict | null> {
+  const sourceHost = row.website ? new URL(row.website).hostname.replace(/^www./, '') : null;
+  for (const candidate of candidateDomains(row.name, row.country_iso2)) {
+    if (new URL(candidate).hostname === sourceHost) continue;
+    let r: CheckResult;
+    try {
+      r = await tryUrl(candidate);
+    } catch {
+      continue; // no such domain / no connection
+    }
+    if (r.status === 'ok' && r.html && !isSoftError(r.html) && mentionsInstitution(row.name, r.html, true)) {
+      return { status: 'ok', http: r.http, url: r.workingUrl, foundBy: 'discovered', html: r.html };
+    }
+  }
+  return null;
+}
+
 export const websiteCheckSource: SyncSource = {
   key: 'dq_websites',
   label: 'Data quality: check websites & find phone numbers',
   description:
-    'Visits institution websites for up to 4 minutes per run (unchecked first, then those older than 30 days) and keeps only working links on public profiles. Where a phone is missing, reads a phone number from the homepage (tel: links, robots.txt respected), validated for the country. Run it repeatedly, or use the command line for a full pass.',
+    'For up to 4 minutes per run (unchecked first, then older than 30 days): checks each website loads AND is really the institution (not an error, parking or unrelated page). If it is missing, broken or someone else\x27s, tries the institution\x27s acronym on official academic domains (e.g. acpce.ac.in) and keeps it only if the page names the institution. Reads a phone number from the homepage where missing (robots.txt respected).',
 
   async run(ctx: SyncContext) {
     const started = Date.now();
     const budget = timeBudgetMs();
     const staleBefore = new Date(Date.now() - RECHECK_DAYS * 86_400_000).toISOString();
-    const tally = { checked: 0, ok: 0, restricted: 0, broken: 0, phones: 0 };
+    const tally = { checked: 0, ok: 0, restricted: 0, broken: 0, mismatch: 0, discovered: 0, none: 0, phones: 0 };
 
     while (Date.now() - started < budget) {
       const { data, error } = await ctx.db
         .schema('edu')
         .from('schools')
-        .select('id, website, phone, country_iso2')
-        .not('website', 'is', null)
+        .select('id, name, website, phone, country_iso2')
         .or(`website_checked_at.is.null,website_checked_at.lt.${staleBefore}`)
         .order('website_checked_at', { ascending: true, nullsFirst: true })
         .order('id')
         .limit(BATCH);
       if (error) throw new Error(`edu.schools: read failed: ${error.message}`);
-      const rows = (data ?? []) as { id: string; website: string; phone: string | null; country_iso2: string }[];
+      const rows = (data ?? []) as CheckRow[];
       if (rows.length === 0) break;
 
       await mapLimit(rows, CONCURRENCY, async (row) => {
         if (Date.now() - started > budget + 30_000) return; // hard stop for slow stragglers
-        const result = await checkWebsite(row.website);
         tally.checked++;
-        tally[result.status]++;
+
+        let v: Verdict = row.website
+          ? await verifySourceWebsite(row)
+          : { status: null, http: null, url: null, foundBy: null, html: null };
+        if (v.status !== 'ok' && v.status !== 'restricted') {
+          const found = await discoverWebsite(row);
+          if (found) {
+            v = found;
+            tally.discovered++;
+          }
+        }
+        if (v.status) tally[v.status]++;
+        else tally.none++;
 
         const patch: Row = {
-          website_status: result.status,
-          website_http_status: result.http,
+          website_status: v.status,
+          website_http_status: v.http,
           website_checked_at: new Date().toISOString(),
-          website_checked_url: result.workingUrl,
+          website_checked_url: v.url,
+          website_found_by: v.foundBy,
         };
-        if (!row.phone && result.status === 'ok' && result.html && result.workingUrl) {
-          const origin = new URL(result.workingUrl).origin;
-          if (await robotsAllowsHomepage(origin)) {
-            const phone = phoneFromHtml(result.html, row.country_iso2);
+        if (!row.phone && v.status === 'ok' && v.html && v.url) {
+          if (await robotsAllowsHomepage(new URL(v.url).origin)) {
+            const phone = phoneFromHtml(v.html, row.country_iso2);
             if (phone) {
               patch.phone = phone;
               patch.phone_source = 'website';
@@ -227,7 +276,7 @@ export const websiteCheckSource: SyncSource = {
         }
         if (!ctx.dryRun) {
           const { error: upErr } = await ctx.db.schema('edu').from('schools').update(patch).eq('id', row.id);
-          if (upErr) ctx.warn(`Could not save check for ${row.website}: ${upErr.message}`);
+          if (upErr) ctx.warn(`Could not save check for ${row.name}: ${upErr.message}`);
         }
         ctx.count('edu.schools', 'updated');
       });
@@ -239,14 +288,13 @@ export const websiteCheckSource: SyncSource = {
       .schema('edu')
       .from('schools')
       .select('id', { count: 'exact', head: true })
-      .not('website', 'is', null)
       .or(`website_checked_at.is.null,website_checked_at.lt.${staleBefore}`);
 
     ctx.warn(
-      `Checked ${tally.checked} websites in ${Math.round((Date.now() - started) / 1000)}s: ${tally.ok} working, ` +
-        `${tally.restricted} reachable but blocking robots (still shown), ${tally.broken} broken (hidden). ` +
-        `${tally.phones} phone numbers found on homepages.`,
+      `Checked ${tally.checked} institutions in ${Math.round((Date.now() - started) / 1000)}s: ${tally.ok} working website (${tally.discovered} newly found on an official domain), ` +
+        `${tally.restricted} reachable but blocking robots (shown), ${tally.broken} broken and ${tally.mismatch} not the institution\x27s site (hidden), ` +
+        `${tally.none} without any website. ${tally.phones} phone numbers found on homepages.`,
     );
-    if (remaining) ctx.warn(`${remaining.toLocaleString('en')} websites still to check: run this source again.`);
+    if (remaining) ctx.warn(`${remaining.toLocaleString('en')} institutions still to check: run this source again.`);
   },
 };
